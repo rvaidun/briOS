@@ -201,23 +201,39 @@ export async function getAllBlocks(pageId: string): Promise<ProcessedBlock[]> {
         const blockObj = block as BlockObjectResponse;
         const processedBlock = processBlockFromResponse(blockObj);
 
-        // If this is a table block with children, fetch the table_row children
-        if (blockObj.type === "table" && blockObj.has_children && processedBlock) {
-          try {
-            const childrenResponse = await notion.blocks.children.list({
-              block_id: blockObj.id,
-              page_size: 100,
-            });
+        if (processedBlock && blockObj.has_children) {
+          if (blockObj.type === "table") {
+            try {
+              const childrenResponse = await notion.blocks.children.list({
+                block_id: blockObj.id,
+                page_size: 100,
+              });
 
-            // Process the table_row children
-            const tableRows = childrenResponse.results
-              .map((childBlock) => processBlockFromResponse(childBlock as BlockObjectResponse))
-              .filter((row): row is ProcessedBlock => row !== null && row.type === "table_row");
+              const tableRows = childrenResponse.results
+                .map((childBlock) => processBlockFromResponse(childBlock as BlockObjectResponse))
+                .filter((row): row is ProcessedBlock => row !== null && row.type === "table_row");
 
-            // Store the rows in the table block
-            processedBlock.tableRows = tableRows;
-          } catch (error) {
-            console.error(`Error fetching table children for ${blockObj.id}:`, error);
+              processedBlock.tableRows = tableRows;
+            } catch (error) {
+              console.error(`Error fetching table children for ${blockObj.id}:`, error);
+            }
+          }
+
+          if (blockObj.type === "quote") {
+            try {
+              const childrenResponse = await notion.blocks.children.list({
+                block_id: blockObj.id,
+                page_size: 100,
+              });
+
+              const quoteChildren = childrenResponse.results
+                .map((childBlock) => processBlockFromResponse(childBlock as BlockObjectResponse))
+                .filter((child): child is ProcessedBlock => child !== null);
+
+              processedBlock.children = quoteChildren;
+            } catch (error) {
+              console.error(`Error fetching quote children for ${blockObj.id}:`, error);
+            }
           }
         }
 

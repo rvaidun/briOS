@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 
 import { CodeBlock } from "@/components/CodeBlock";
 import type { ProcessedBlock, RichTextContent, RichTextItemResponse } from "@/lib/notion";
+import { cn } from "@/lib/utils";
 
 // URL regex pattern to match http/https URLs
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
@@ -84,19 +85,27 @@ function renderRichText(richText: RichTextContent[]) {
   });
 }
 
-export function renderBlocks(blocks: ProcessedBlock[], isPreview: boolean = false) {
+export function renderBlocks(
+  blocks: ProcessedBlock[],
+  isPreview: boolean = false,
+  parentType?: string,
+) {
   return blocks.map((block) => {
+    const inQuote = parentType === "quote";
+    const primaryTextClass = inQuote ? "text-tertiary" : "text-primary";
+    const secondaryTextClass = inQuote ? "text-tertiary" : "text-secondary";
+
     if (isPreview) {
       // For preview mode, render all blocks as paragraphs with rich text
       if (block.type === "table" && block.tableRows) {
         return (
-          <p key={block.id} className="text-secondary leading-[1.6]">
+          <p key={block.id} className={cn("leading-[1.6]", secondaryTextClass)}>
             [Table with {block.tableRows.length} rows]
           </p>
         );
       }
       return (
-        <p key={block.id} className="text-secondary leading-[1.6]">
+        <p key={block.id} className={cn("leading-[1.6]", secondaryTextClass)}>
           {renderRichText(block.content)}
         </p>
       );
@@ -151,54 +160,62 @@ export function renderBlocks(blocks: ProcessedBlock[], isPreview: boolean = fals
             className="border-primary text-tertiary border-l-3 pl-5 leading-[1.6]"
           >
             {renderRichText(block.content)}
+            {block.children?.length ? (
+              <div className="mt-2 flex flex-col gap-2">
+                {renderBlocks(block.children, isPreview, "quote")}
+              </div>
+            ) : null}
           </blockquote>
         );
       case "paragraph":
         return (
-          <p key={block.id} className="text-primary leading-[1.6]">
+          <p key={block.id} className={cn("leading-[1.6]", primaryTextClass)}>
             {renderRichText(block.content)}
           </p>
         );
       case "heading_1":
         return (
-          <h1 key={block.id} className="text-primary mt-6 font-sans text-3xl font-bold">
+          <h1 key={block.id} className={cn("mt-6 font-sans text-3xl font-bold", primaryTextClass)}>
             {renderRichText(block.content)}
           </h1>
         );
       case "heading_2":
         return (
-          <h2 key={block.id} className="text-primary mt-6 font-sans text-2xl font-bold">
+          <h2 key={block.id} className={cn("mt-6 font-sans text-2xl font-bold", primaryTextClass)}>
             {renderRichText(block.content)}
           </h2>
         );
       case "heading_3":
         return (
-          <h3 key={block.id} className="text-primary mt-5 font-sans text-xl font-bold">
+          <h3 key={block.id} className={cn("mt-5 font-sans text-xl font-bold", primaryTextClass)}>
             {renderRichText(block.content)}
           </h3>
         );
       case "bulleted_list_item":
         return (
-          <li key={block.id} className="text-primary ml-3 list-disc leading-[1.6]">
+          <li key={block.id} className={cn("ml-3 list-disc leading-[1.6]", primaryTextClass)}>
             {renderRichText(block.content)}
           </li>
         );
       case "numbered_list_item":
         return (
-          <li key={block.id} className="text-primary ml-4 list-decimal leading-[1.6]">
+          <li key={block.id} className={cn("ml-4 list-decimal leading-[1.6]", primaryTextClass)}>
             {renderRichText(block.content)}
           </li>
         );
       case "to_do":
         return (
-          <div key={block.id} className="text-secondary flex items-start gap-2 leading-[1.6]">
+          <div
+            key={block.id}
+            className={cn("flex items-start gap-2 leading-[1.6]", secondaryTextClass)}
+          >
             <input type="checkbox" disabled className="mt-1" />
             <span>{renderRichText(block.content)}</span>
           </div>
         );
       case "toggle":
         return (
-          <details key={block.id} className="text-secondary leading-[1.6]">
+          <details key={block.id} className={cn("leading-[1.6]", secondaryTextClass)}>
             <summary>{renderRichText(block.content)}</summary>
           </details>
         );

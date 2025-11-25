@@ -10,7 +10,7 @@ import React from "react";
 import { sidebarAtom } from "@/atoms/sidebar";
 import { DoubleChevronLeft } from "@/components/icons/DoubleChevronLeft";
 import { IconButton } from "@/components/ui/IconButton";
-import { getMainNavigationItems, getProjectNavigationItems } from "@/config/navigation";
+import { getMainNavigationItems } from "@/config/navigation";
 import { useIsSmallScreen } from "@/hooks/useIsSmallScreen";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +26,6 @@ export function PrimarySidebar({
 
   // Memoize navigation items to avoid recomputing on every render
   const mainNavItems = React.useMemo(() => getMainNavigationItems(), []);
-  const projectNavItems = React.useMemo(() => getProjectNavigationItems(), []);
 
   const duration = 0.2;
   const ease = "easeInOut" as const;
@@ -84,30 +83,6 @@ export function PrimarySidebar({
 
               <div className="flex flex-1 flex-col gap-px overflow-y-auto px-1 py-4">
                 {mainNavItems.map((item) => {
-                  const IconComponent = item.icon;
-                  return (
-                    <SidebarItem
-                      key={item.id}
-                      icon={<IconComponent />}
-                      label={item.label}
-                      href={item.href}
-                      isActive={item.isActive?.(pathname) ?? false}
-                      onClick={() => {
-                        if (isSmallScreen) {
-                          setIsOpen(false);
-                        }
-                      }}
-                    />
-                  );
-                })}
-
-                <div className="mt-4 px-3 pb-1">
-                  <span className="text-quaternary text-[13px] font-medium select-none">
-                    Projects
-                  </span>
-                </div>
-
-                {projectNavItems.map((item) => {
                   const IconComponent = item.icon;
                   return (
                     <SidebarItem

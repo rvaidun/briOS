@@ -34,15 +34,6 @@ export const navigationItems: NavigationItem[] = [
     isActive: (pathname) => pathname.startsWith("/blog"),
     section: "main",
   },
-  // {
-  //   id: "stack",
-  //   label: "Stack",
-  //   href: "/stack",
-  //   icon: Ballot,
-  //   keywords: ["stack", "tools", "tech"],
-  //   isActive: (pathname) => pathname.startsWith("/stack"),
-  //   section: "projects",
-  // },
 
   {
     id: "music",
@@ -51,7 +42,7 @@ export const navigationItems: NavigationItem[] = [
     icon: Headphones3,
     keywords: ["listening", "music", "audio"],
     isActive: (pathname) => pathname === "/listening",
-    section: "projects",
+    section: "main",
   },
 ];
 

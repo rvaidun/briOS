@@ -143,7 +143,6 @@ export async function getWritingPostContent(
     };
 
     const blocks = await getAllBlocks(pageId);
-
     return { blocks, metadata };
   } catch (error) {
     console.error(`Error fetching writing post content for page ${pageId}:`, error);
@@ -205,14 +204,12 @@ export async function getListeningHistoryDatabaseItems(
         if (!hasProperties(page)) return null;
 
         const pageWithIcon = page as PageObjectResponse;
-        console.log("PAGE WITH ICON TYPE", pageWithIcon);
         const icon =
           pageWithIcon.icon?.type === "file"
             ? pageWithIcon.icon.file.url
             : pageWithIcon.icon?.type === "external"
               ? pageWithIcon.icon.external.url
               : undefined;
-        console.log("ICON IS", icon);
 
         const properties = pageWithIcon.properties as {
           Name?: { title: { plain_text: string }[] };

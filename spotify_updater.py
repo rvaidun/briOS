@@ -3,6 +3,7 @@ import requests
 from datetime import datetime
 from typing import List, Dict, Optional
 import dotenv
+from datetime import timedelta
 
 dotenv.load_dotenv()
 
@@ -225,17 +226,29 @@ def sync_spotify_to_notion():
     # Get latest synced timestamp from Notion
     latest_played_at = get_latest_played_at_from_notion()
     print(f"✓ Latest synced track: {latest_played_at or 'None (empty database)'}")
+    latest_played_at_dt = datetime.strptime(latest_played_at, '%Y-%m-%dT%H:%M:00.000+00:00') if latest_played_at else None
     
     # Process tracks in chronological order (oldest first)
-    tracks.reverse()
     synced_count = 0
+    # pretty print 10 items of track data
+    with open('debug_tracks.json', 'w') as f:
+        import json
+        json.dump(tracks[:10], f, indent=2)
     
     for item in tracks:
         track = item['track']
         played_at = item['played_at']
+        # print type of played_at
+        played_at_dt = datetime.strptime(played_at, '%Y-%m-%dT%H:%M:%S.%fZ')
+        played_at = played_at_dt.isoformat()
+        # add 1 minute buffer to latest_played_at for comparison
+        played_at_dt = played_at_dt - timedelta(minutes=1)
+        print("last played",type(latest_played_at_dt))
+
+
+        # Stop if we've already synced this timestamp + 1 minute buffer
         
-        # Stop if we've already synced this timestamp
-        if latest_played_at and played_at <= latest_played_at:
+        if latest_played_at_dt and played_at_dt <= latest_played_at_dt:
             print(f"✓ Reached already-synced tracks at {played_at}")
             break
         
@@ -251,9 +264,10 @@ def sync_spotify_to_notion():
         }
         
         # Add track row to Notion
-        add_track_to_notion(track_data)
+        # add_track_to_notion(track_data)
         synced_count += 1
         print(f"  → Added: {track_data['name']} by {track_data['artist']}")
+        print(f"    Played at: {track_data['playedAt']}")
     
     print(f"\n✓ Sync complete! Added {synced_count} new tracks to Notion")
 

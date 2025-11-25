@@ -41,7 +41,7 @@ export function ListDetailLayout({
         {headerChildren}
       </TopBar>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden pt-11 md:pt-0">
         <div
           className={cn("w-full border-r @3xl:max-w-[var(--secondary-sidebar-width)]", {
             "hidden @3xl:flex": isDetailPage,

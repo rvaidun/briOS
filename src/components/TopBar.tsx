@@ -20,6 +20,7 @@ export function TopBar({ children, className }: PropsWithChildren<{ className?: 
         {
           "pl-2": !primarySidebarOpen || isSmallScreen,
           "pl-4": primarySidebarOpen && !isSmallScreen,
+          "bg-primary fixed top-0 right-0 left-0 z-10": isSmallScreen,
         },
         className,
       )}

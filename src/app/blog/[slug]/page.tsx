@@ -100,7 +100,7 @@ export default async function WritingPostPage(props: { params: Promise<{ slug: s
           <div className="text-tertiary ml-auto hidden text-sm sm:flex">{date}</div>
         </div>
       </TopBar>
-      <div className="min-w-0 flex-1 overflow-y-auto">
+      <div className="min-w-0 flex-1 overflow-y-auto pt-11 md:pt-0">
         <div className="mx-auto flex max-w-3xl flex-1 flex-col gap-8 px-4 py-12 md:px-6 lg:px-8 lg:py-16 xl:py-20">
           <div className="flex flex-col gap-2">
             <h1 className="text-primary text-3xl font-bold -tracking-[0.64px] xl:text-4xl">

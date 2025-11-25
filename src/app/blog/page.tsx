@@ -40,7 +40,7 @@ export default async function WritingPage() {
       <TopBar>
         <div className="flex-1 text-sm font-medium">Writing</div>
       </TopBar>
-      <div data-scrollable className="flex-1 overflow-y-auto">
+      <div data-scrollable className="flex-1 overflow-y-auto pt-11 md:pt-0">
         <div className="text-secondary mx-auto flex max-w-xl flex-1 flex-col gap-16 py-16 leading-[1.6]">
           {sortedYears.map((year) => (
             <Section key={year}>

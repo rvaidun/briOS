@@ -37,7 +37,7 @@ export default function Home() {
           <div className="flex-1 text-sm font-semibold">About</div>
         </TopBar>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pt-11 md:pt-0">
           <div className="text-secondary mx-auto flex max-w-xl flex-1 flex-col gap-16 py-16 leading-[1.6]">
             <Section>
               <Image

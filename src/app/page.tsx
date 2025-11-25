@@ -16,9 +16,9 @@ import { TopBar } from "@/components/TopBar";
 import { createMetadata, createPersonJsonLd } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
-  title: "Brian Lovin",
+  title: "Rahul Vaidun",
   description:
-    "Brian Lovin is a designer and software engineer living in San Francisco, currently designing AI products at Notion.",
+    "Rahul Vaidun is a software engineer living in San Francisco, currently working at DoorDash as a Software Engineer.",
   path: "/",
 });
 
@@ -41,16 +41,16 @@ export default function Home() {
             <Section>
               <Image
                 src="/img/avatar.jpg"
-                alt="Brian Lovin"
+                alt="Rahul Vaidun"
                 width={44}
                 height={44}
                 draggable={false}
                 className="mb-8 rounded-full select-none"
               />
               <p>
-                Hey, I&apos;m Rahul. I&apos;m a
-                <InlineLink href="https://github.com/rvaidun">developer</InlineLink>
-                and graduated from the{" "}
+                Hey, I&apos;m Rahul. I&apos;m a{" "}
+                <InlineLink href="https://github.com/rvaidun">developer</InlineLink> and graduated
+                from the{" "}
                 <InlineLink href="https://ucsc.edu">
                   University of California at Santa Cruz
                 </InlineLink>{" "}
@@ -152,7 +152,7 @@ export default function Home() {
             </Section>
             <footer className="text-secondary border-t border-white/10 pt-4 text-center text-xs">
               Heavily inspired by{" "}
-              <InlineLink href="https://brianlovin.com/">Brian Lovin</InlineLink>
+              <InlineLink href="https://rahulvaidun.com/">Rahul Vaidun</InlineLink>
             </footer>
           </div>
         </div>

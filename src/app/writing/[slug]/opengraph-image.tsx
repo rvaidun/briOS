@@ -17,7 +17,7 @@ export default async function Image(props: { params: Promise<{ slug: string }> }
     // Fallback to generic title if post not found
     return generateOGImage({
       title: "Writing",
-      url: "brianlovin.com/writing",
+      url: "rahulvaidun.com/writing",
     });
   }
 
@@ -25,6 +25,6 @@ export default async function Image(props: { params: Promise<{ slug: string }> }
 
   return generateOGImage({
     title: metadata.title,
-    url: `brianlovin.com/writing/${slug}`,
+    url: `rahulvaidun.com/writing/${slug}`,
   });
 }

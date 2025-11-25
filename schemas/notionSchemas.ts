@@ -3,6 +3,13 @@
 
 import { z } from "zod";
 
+export const WritingSchema = z.object({
+  tes: z.string().optional(),
+  Name: z.string().optional(),
+});
+
+export type Writing = z.infer<typeof WritingSchema>;
+
 export const MusicSchema = z.object({
   Album: z.string().optional(),
   "Spotify URL": z.string().optional(),

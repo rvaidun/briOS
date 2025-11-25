@@ -1,0 +1,18 @@
+{
+  "props": {
+    "tes": {
+      "id": "_%5EJ%5B",
+      "name": "tes",
+      "description": null,
+      "type": "rich_text",
+      "rich_text": {}
+    },
+    "Name": {
+      "id": "title",
+      "name": "Name",
+      "description": null,
+      "type": "title",
+      "title": {}
+    }
+  }
+}

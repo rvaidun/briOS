@@ -197,7 +197,7 @@ function SidebarHeader() {
           className="h-5 w-5 rounded-full"
           draggable={false}
         />
-        <span className="text-sm font-medium">Brian Lovin</span>
+        <span className="text-sm font-medium">Rahul Vaidun</span>
       </Link>
 
       <IconButton

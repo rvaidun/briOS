@@ -14,7 +14,7 @@ import { getAllWritingPosts } from "@/lib/writing";
 export const metadata: Metadata = createMetadata({
   title: "Writing",
   description:
-    "Thoughts on design, engineering, and building products. Essays and reflections from Brian Lovin.",
+    "Thoughts on design, engineering, and building products. Essays and reflections from Rahul Vaidun.",
   path: "/writing",
 });
 

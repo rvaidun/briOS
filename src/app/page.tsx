@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { SpeakingList } from "@/components/home/SpeakingList";
 import { SpeakingListSkeleton } from "@/components/home/SpeakingListSkeleton";
 import { ArrowUpRight } from "@/components/icons/ArrowUpRight";
-import { BufferLogoSVG, GitHubIcon, XIcon, YouTubeIcon } from "@/components/icons/SocialIcons";
+import { DoorDashIcon, GitHubIcon, XIcon } from "@/components/icons/SocialIcons";
 import {
   InlineLink,
   List,
@@ -50,38 +50,47 @@ export default function Home() {
                 draggable={false}
                 className="mb-8 rounded-full select-none"
               />
-              <p className="text-pretty">
-                Hey, I&apos;m Brian. I&apos;m a software designer currently living in San Francisco.
+              <p>
+                Hey, I&apos;m Rahul. I&apos;m a
+                <InlineLink href="https://github.com/rvaidun">developer</InlineLink>
+                and graduated from the
+                <InlineLink href="https://ucsc.edu">
+                  University of California at Santa Cruz
+                </InlineLink>
+                with a B.S. in Computer Science in June 2023. I&apos;m currently working at{" "}
+                <InlineLink href="https://www.doordash.com/">DoorDash</InlineLink> as a Software
+                Engineer. I am working on the Catalog build team to help onboard merchants in the
+                New Verticals space onto the platform.
+              </p>
+              <p>
+                I&apos;m also working at{" "}
+                <InlineLink href="http://svfinancials.com/">S V Financials</InlineLink>, automating
+                giving rate quotes for client scenarios.
               </p>
 
               <p>
-                I&apos;m currently designing AI products at{" "}
-                <InlineLink href="https://notion.com">Notion</InlineLink>. Before Notion, I was the
-                co-founder of <InlineLink href="https://campsite.com">Campsite</InlineLink>, an app
-                that combined posts, docs, calls, and chat to enable thoughtful team collaboration.
+                Before DoorDash, I was working at{" "}
+                <InlineLink href="https://www.experian.com/">Experian</InlineLink> as a Software
+                Engineer. I was working on a platform to help financial institutions deploy and
+                manage their machine learning models in the cloud. I also worked on a product in the
+                model risk management space which helped institutions meet compliance requirements
+                for their models in various regions.
               </p>
               <p>
-                Before Campsite, I spent four years designing the{" "}
-                <InlineLink href="https://github.com/mobile">GitHub Mobile</InlineLink> apps. I
-                joined GitHub after they acquired my first startup,{" "}
-                <InlineLink href="https://spectrum.chat">Spectrum</InlineLink>, a platform for
-                branded communities to have better public conversations.
+                Before Experian, I was working as a contractor at{" "}
+                <InlineLink href="https://texts.com/">Texts</InlineLink> building a universal chat
+                client to bring all of your messages in one inbox. I reverse engineered the
+                Instagram DM API and integrated it into the Texts platform.
               </p>
               <p>
-                Before Spectrum, I designed payments experiences at Facebook, working across{" "}
-                <InlineLink href="https://facebook.com">Facebook</InlineLink>,{" "}
-                <InlineLink href="https://messenger.com">Messenger</InlineLink>,{" "}
-                <InlineLink href="https://whatsapp.com">WhatsApp</InlineLink>, and{" "}
-                <InlineLink href="https://instagram.com">Instagram</InlineLink>. I originally cut my
-                teeth as the first product designer at{" "}
-                <InlineLink href="https://buffer.com">Buffer</InlineLink>.
+                Before Texts, I interned at{" "}
+                <InlineLink href="https://www.mulesoft.com/">Mulesoft</InlineLink> as a Solutions
+                Engineer where I developed solutions and APIs in Anypoint platform and created an
+                enablement menu for the Channel Solution Engineer Team
               </p>
               <p>
-                Along the way, I was a co-host of the{" "}
-                <InlineLink href="https://designdetails.fm">Design Details</InlineLink> podcast for
-                nine years, a weekly conversation about design process and culture. I also created{" "}
-                <InlineLink href="https://staff.design">Staff Design</InlineLink>, an interview
-                project about navigating the individual contributor career path.
+                When I&apos;m not at the computer I enjoy hiking, skiing, running, and playing table
+                tennis.
               </p>
             </Section>
 
@@ -162,46 +171,29 @@ export default function Home() {
 const socials = [
   {
     name: "X",
-    href: "https://x.com/brian_lovin",
+    href: "https://x.com/rahooolv",
     icon: XIcon,
   },
   {
-    name: "YouTube",
-    href: "https://www.youtube.com/@brian_lovin",
-    icon: YouTubeIcon,
-  },
-  {
     name: "GitHub",
-    href: "https://github.com/brianlovin",
+    href: "https://github.com/rvaidun",
     icon: GitHubIcon,
   },
 ];
 
 const projects = [
-  {
-    name: "HN",
-    href: "/hn",
-    description: "A minimal hacker news reader",
-    external: false,
-  },
-  {
-    name: "App Dissection",
-    href: "/app-dissection",
-    description: "Breaking down well-designed apps",
-    external: false,
-  },
-  {
-    name: "Stack",
-    href: "/stack",
-    description: "My favorite apps and tools",
-    external: false,
-  },
-  {
-    name: "AMA",
-    href: "/ama",
-    description: "Ask me anything",
-    external: false,
-  },
+  // {
+  //   name: "Stack",
+  //   href: "/stack",
+  //   description: "My favorite apps and tools",
+  //   external: false,
+  // },
+  // {
+  //   name: "AMA",
+  //   href: "/ama",
+  //   description: "Ask me anything",
+  //   external: false,
+  // },
   {
     name: "Listening",
     href: "/listening",
@@ -254,67 +246,68 @@ interface WorkItem {
 
 const work: WorkItem[] = [
   {
-    name: "Notion",
-    href: "https://notion.com",
-    role: "Product Designer",
+    name: "DoorDash",
+    href: "https://doordash.com",
+    role: "Software Engineer",
     period: "Current",
     icon: {
-      type: "image",
-      src: "/img/notion.png",
-      alt: "Notion",
-    },
-  },
-  {
-    name: "Campsite",
-    href: "https://campsite.com",
-    role: "Co-founder",
-    period: "2022–25",
-    icon: {
-      type: "image",
-      src: "/img/campsite.png",
-      alt: "Campsite",
-    },
-  },
-  {
-    name: "GitHub",
-    href: "https://github.com/mobile",
-    role: "Product Designer",
-    period: "2018–22",
-    icon: {
       type: "svg",
-      component: GitHubIcon,
+      component: DoorDashIcon,
     },
   },
   {
-    name: "Spectrum",
-    href: "https://spectrum.chat",
-    role: "Co-founder",
-    period: "2017–18",
+    name: "Experian",
+    href: "https://experian.com",
+    role: "Software Engineer",
+    period: "2024-25",
     icon: {
       type: "image",
-      src: "/img/spectrum.png",
-      alt: "Spectrum",
+      src: "/img/experian.png",
+      alt: "Experian",
     },
   },
   {
-    name: "Facebook",
-    href: "https://facebook.com",
-    role: "Product Designer",
-    period: "2015–17",
+    name: "Texts",
+    href: "https://texts.com",
+    role: "Software Engineer (Contractor)",
+    period: "2023",
     icon: {
       type: "image",
-      src: "/img/facebook.png",
-      alt: "Facebook",
+      src: "/img/texts.png",
+      alt: "Texts",
     },
   },
   {
-    name: "Buffer",
-    href: "https://buffer.com",
-    role: "Product Designer",
-    period: "2013–15",
+    name: "Mulesoft",
+    href: "https://mulesoft.com",
+    role: "Solutions Engineer Intern",
+    period: "Summer 2022",
     icon: {
-      type: "svg",
-      component: BufferLogoSVG,
+      type: "image",
+      src: "/img/mulesoft.png",
+      alt: "Mulesoft",
+    },
+  },
+  {
+    name: "SkyGeni",
+    href: "https://skygeni.com",
+    role: "Software Engineer Intern",
+    period: "2020-21",
+    icon: {
+      type: "image",
+      src: "/img/skygeni.png",
+      alt: "SkyGeni",
+    },
+  },
+  {
+    name: "S V Financials",
+    href: "https://svfinancials.com",
+    role: "Software Engineer/Accountant",
+    period: "2020 - Current",
+    icon: {
+      type: "image",
+      src: "/img/svf.png",
+      alt: "S V Financials",
     },
   },
 ];

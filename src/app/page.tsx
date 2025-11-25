@@ -278,7 +278,7 @@ const work: WorkItem[] = [
   {
     name: "S V Financials",
     href: "https://svfinancials.com",
-    role: "Software Engineer/Accountant",
+    role: "Accountant",
     period: "2020 - Current",
     icon: {
       type: "image",

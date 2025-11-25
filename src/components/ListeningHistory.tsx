@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { ListeningHistoryPage, useListeningHistoryPaginated } from "@/hooks/useListeningHistory";
+import { cn } from "@/lib/utils";
 
 import { LoadingSpinner } from "./ui";
 
@@ -134,7 +135,7 @@ export function ListeningHistory({ initialData }: ListeningHistoryProps = {}) {
   // eslint-disable-next-line
   const virtualizer = useVirtualizer({
     count: !isReachingEnd ? music.length + 1 : music.length, // Add 1 for loader row if more data available
-    getScrollElement: () => parentRef.current,
+    getScrollElement: () => (isMobile ? document.documentElement : parentRef.current),
     estimateSize: () => (isMobile ? 74 : 40), // Mobile: 64px (py-3 + 40px image + text), Desktop: 40px
     overscan: 10, // Render 10 extra items outside viewport for smooth scrolling
   });
@@ -168,7 +169,7 @@ export function ListeningHistory({ initialData }: ListeningHistoryProps = {}) {
 
   if (isLoading && music.length === 0) {
     return (
-      <div className="flex flex-1 flex-col overflow-y-auto">
+      <div className="flex flex-1 flex-col md:overflow-y-auto">
         <div className="flex flex-1 items-center justify-center">
           <LoadingSpinner />
         </div>
@@ -178,7 +179,7 @@ export function ListeningHistory({ initialData }: ListeningHistoryProps = {}) {
 
   if (isError) {
     return (
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 md:overflow-y-auto">
         <div className="flex h-32 items-center justify-center">
           <div className="text-secondary">Error loading music data</div>
         </div>
@@ -189,9 +190,11 @@ export function ListeningHistory({ initialData }: ListeningHistoryProps = {}) {
   return (
     <div
       ref={parentRef}
-      className="flex-1 overflow-auto"
+      className={cn("md:flex-1 md:overflow-auto", {
+        "min-h-[calc(100vh+1px)]": isMobile,
+      })}
       style={{
-        contain: "strict",
+        contain: isMobile ? "none" : "strict",
       }}
     >
       <div className="min-w-fit">

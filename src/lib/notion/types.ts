@@ -9,18 +9,8 @@ import type {
 
 // Re-export generated Zod schemas and types
 export {
-  type AMA,
-  AMASchema,
-  type DesignDetailsEpisodes,
-  DesignDetailsEpisodesSchema,
-  type GoodWebsites,
-  GoodWebsitesSchema,
   type Music,
   MusicSchema,
-  type Speaking,
-  SpeakingSchema,
-  type Stack,
-  StackSchema,
   type Writing,
   WritingSchema,
 } from "../../../schemas/notionSchemas";

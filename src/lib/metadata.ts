@@ -46,7 +46,6 @@ export const DEFAULT_METADATA: Metadata = {
     card: SITE_CONFIG.social.twitter.cardType,
     title: SITE_CONFIG.title,
     description: SITE_CONFIG.description,
-    creator: SITE_CONFIG.author.twitter,
   },
   robots: {
     index: true,
@@ -122,7 +121,6 @@ export function createMetadata(params: CreateMetadataParams = {}): Metadata {
       card: SITE_CONFIG.social.twitter.cardType,
       title: title || SITE_CONFIG.title,
       description,
-      creator: SITE_CONFIG.author.twitter,
       // Only include images if explicitly provided, otherwise Next.js will use opengraph-image.tsx
       ...(image && { images: [image] }),
     },
@@ -149,7 +147,7 @@ export function createWebSiteJsonLd() {
       "@type": "Person",
       name: SITE_CONFIG.author.name,
       url: SITE_CONFIG.url,
-      sameAs: [SITE_CONFIG.author.twitter, SITE_CONFIG.author.github],
+      sameAs: [SITE_CONFIG.author.github],
     },
   };
 }
@@ -182,7 +180,7 @@ export function createArticleJsonLd(params: ArticleJsonLdParams) {
       "@type": "Person",
       name: SITE_CONFIG.author.name,
       url: SITE_CONFIG.url,
-      sameAs: [SITE_CONFIG.author.twitter, SITE_CONFIG.author.github],
+      sameAs: [SITE_CONFIG.author.github],
     },
     publisher: {
       "@type": "Person",
@@ -204,16 +202,12 @@ export function createPersonJsonLd() {
     name: SITE_CONFIG.author.name,
     url: SITE_CONFIG.url,
     description: SITE_CONFIG.description,
-    sameAs: [
-      SITE_CONFIG.author.twitter,
-      SITE_CONFIG.author.github,
-      "https://www.youtube.com/@brian_lovin",
-    ],
-    jobTitle: "Product Designer",
+    sameAs: [SITE_CONFIG.author.github],
+    jobTitle: "Software Engineer",
     worksFor: {
       "@type": "Organization",
-      name: "Notion",
-      url: "https://notion.com",
+      name: "DoorDash",
+      url: "https://www.doordash.com",
     },
   };
 }

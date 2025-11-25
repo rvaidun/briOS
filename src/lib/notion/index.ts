@@ -3,12 +3,10 @@ export { notion } from "./client";
 
 // Types
 export type {
-  AMA,
   // SDK types
   BlockObjectResponse,
   // Zod schemas and types
   DatabaseObjectResponse,
-  DesignDetailsEpisodes,
   GoodWebsiteItem,
   Music,
   NotionAmaItem,
@@ -25,18 +23,11 @@ export type {
   // Custom types
   RichTextContent,
   RichTextItemResponse,
-  Stack,
   Writing,
 } from "./types";
 
 // Zod schemas
-export {
-  AMASchema,
-  DesignDetailsEpisodesSchema,
-  MusicSchema,
-  StackSchema,
-  WritingSchema,
-} from "./types";
+export { MusicSchema, WritingSchema } from "./types";
 
 // Type guards and utilities
 export { extractPlainText, hasProperties, isBlockObjectResponse } from "./types";
@@ -46,19 +37,10 @@ export { getAllBlocks, processBlockFromResponse } from "./blocks";
 
 // Queries
 export {
-  getAmaDatabaseItems,
-  // AMA
-  getAmaItemContent,
-  // Design Details
-  getDesignDetailsEpisodeDatabaseItems,
   // Generic
   getFullContent,
-  // Good Websites
-  getGoodWebsitesDatabaseItems,
   // Listening History
   getListeningHistoryDatabaseItems,
-  // Stack
-  getStackDatabaseItems,
   // Writing
   getWritingDatabaseItems,
   getWritingPostContent,

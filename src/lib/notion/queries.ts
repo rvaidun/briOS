@@ -8,6 +8,45 @@ import {
   type NotionListeningHistoryItem,
   type ProcessedBlock,
 } from "./types";
+// ===== Generic Content Retrieval =====
+
+export async function getFullContent(
+  pageId: string,
+): Promise<{ blocks: ProcessedBlock[]; metadata: NotionItem } | null> {
+  try {
+    const page = await notion.pages.retrieve({ page_id: pageId });
+
+    if (!hasProperties(page)) return null;
+
+    const pageWithProps = page as PageObjectResponse;
+    const properties = pageWithProps.properties as {
+      Name?: { title: { plain_text: string }[] };
+      Category?: { select: { name: string } | null };
+      Status?: { select: { name: string } | null };
+      Published?: { date: { start: string } | null };
+      Source?: { url: string };
+      Slug?: { rich_text: { plain_text: string }[] };
+    };
+
+    const metadata: NotionItem = {
+      id: pageWithProps.id,
+      title: properties.Name?.title[0]?.plain_text || "Untitled",
+      category: properties.Category?.select?.name || "Uncategorized",
+      status: properties.Status?.select?.name || "Draft",
+      createdTime: pageWithProps.created_time,
+      published: properties.Published?.date?.start || pageWithProps.created_time,
+      source: properties.Source?.url?.replace("https://", ""),
+      slug: properties.Slug?.rich_text[0]?.plain_text || "",
+    };
+
+    const blocks = await getAllBlocks(pageId);
+
+    return { blocks, metadata };
+  } catch (error) {
+    console.error(`Error fetching full content for page ${pageId}:`, error);
+    return null;
+  }
+}
 
 // ===== Writing Database =====
 

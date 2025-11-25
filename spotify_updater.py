@@ -264,7 +264,7 @@ def sync_spotify_to_notion():
         }
         
         # Add track row to Notion
-        # add_track_to_notion(track_data)
+        add_track_to_notion(track_data)
         synced_count += 1
         print(f"  → Added: {track_data['name']} by {track_data['artist']}")
         print(f"    Played at: {track_data['playedAt']}")

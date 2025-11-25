@@ -152,8 +152,7 @@ export default function Home() {
               </List>
             </Section>
             <footer className="text-secondary border-t border-white/10 pt-4 text-center text-xs">
-              Heavily inspired by{" "}
-              <InlineLink href="https://rahulvaidun.com/">Rahul Vaidun</InlineLink>
+              Design Credits to <InlineLink href="https://brianlovin.com/">Brian Lovin</InlineLink>
             </footer>
           </div>
         </div>

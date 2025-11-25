@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { Suspense } from "react";
 
-import { SpeakingList } from "@/components/home/SpeakingList";
-import { SpeakingListSkeleton } from "@/components/home/SpeakingListSkeleton";
 import { ArrowUpRight } from "@/components/icons/ArrowUpRight";
 import { DoorDashIcon, GitHubIcon, XIcon } from "@/components/icons/SocialIcons";
 import {
@@ -153,13 +150,6 @@ export default function Home() {
                 ))}
               </List>
             </Section>
-
-            <Section>
-              <SectionHeading>Speaking</SectionHeading>
-              <Suspense fallback={<SpeakingListSkeleton />}>
-                <SpeakingList />
-              </Suspense>
-            </Section>
           </div>
         </div>
       </div>
@@ -182,52 +172,34 @@ const socials = [
 ];
 
 const projects = [
-  // {
-  //   name: "Stack",
-  //   href: "/stack",
-  //   description: "My favorite apps and tools",
-  //   external: false,
-  // },
-  // {
-  //   name: "AMA",
-  //   href: "/ama",
-  //   description: "Ask me anything",
-  //   external: false,
-  // },
   {
-    name: "Listening",
-    href: "/listening",
-    description: "What I'm listening to",
-    external: false,
+    name: "Email Automater",
+    href: "https://github.com/rvaidun/email-automater/",
+    description: "Automate your recruiter emails",
+    external: true,
   },
   {
-    name: "Good websites",
-    href: "/sites",
-    description: "A curated collection of good websites",
-    external: false,
-  },
-  {
-    name: "Staff Design",
+    name: "Data Visualization and Analysis for Animal Testing",
     href: "https://staff.design",
     description: "Navigating the IC career path",
     external: true,
   },
   {
-    name: "Design Details",
-    href: "https://designdetails.fm",
+    name: "Population Density Visualization",
+    href: "https://rahulvaidun.com/CSE-163-HW7-Maryland-Population-Density/",
+    description: "App design critique",
+    external: true,
+  },
+  {
+    name: "BeFake",
+    href: "https://github.com/rvaidun/befake",
     description: "A podcast about design and technology",
     external: true,
   },
   {
-    name: "How to Computer Better",
-    href: "https://brianlovin.notion.site/how-to-computer-better",
+    name: "Document Generator",
+    href: "https://github.com/rvaidun/Document-Generator",
     description: "Get good at computering",
-    external: true,
-  },
-  {
-    name: "Crit",
-    href: "https://www.youtube.com/playlist?list=PLJu44Klx1pB_8GSOUeDNDllPICvMJKSut",
-    description: "App design critique",
     external: true,
   },
 ];

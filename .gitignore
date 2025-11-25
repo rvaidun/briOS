@@ -46,3 +46,6 @@ next-env.d.ts
 
 # notion data
 data-exports/
+
+spotify_updater.py
+spotify_tokens.json

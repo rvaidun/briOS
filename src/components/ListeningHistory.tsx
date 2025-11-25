@@ -82,6 +82,13 @@ function ListeningHistoryRow({ item }: ListeningHistoryRowProps) {
         <div className="min-w-0 flex-1">
           <span className="text-primary block truncate font-medium">{item.name}</span>
           <div className="text-tertiary truncate text-sm md:hidden">{item.artist}</div>
+          <div className="text-tertiary truncate text-sm md:hidden">
+            {new Date(item.playedAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </div>
         </div>
       </div>
 
@@ -128,7 +135,7 @@ export function ListeningHistory({ initialData }: ListeningHistoryProps = {}) {
   const virtualizer = useVirtualizer({
     count: !isReachingEnd ? music.length + 1 : music.length, // Add 1 for loader row if more data available
     getScrollElement: () => parentRef.current,
-    estimateSize: () => (isMobile ? 64 : 40), // Mobile: 64px (py-3 + 40px image + text), Desktop: 40px
+    estimateSize: () => (isMobile ? 74 : 40), // Mobile: 64px (py-3 + 40px image + text), Desktop: 40px
     overscan: 10, // Render 10 extra items outside viewport for smooth scrolling
   });
 

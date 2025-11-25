@@ -78,7 +78,7 @@ export function PrimarySidebar({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={shouldSuppressAnimation ? { duration: 0 } : transition}
-              className={cn("flex h-full min-w-[var(--primary-sidebar-width)] flex-col", {})}
+              className={cn("flex h-full min-w-(--primary-sidebar-width) flex-col", {})}
             >
               <SidebarHeader />
 
@@ -152,8 +152,8 @@ export function SidebarItem({
     <Link href={href} onClick={onClick}>
       <div
         className={cn("group/sidebar-item flex h-[30px] items-center gap-2 rounded-md px-2", {
-          "hover:bg-black/5 dark:hover:bg-white/[0.08]": !isActive,
-          "bg-black/5 hover:bg-black/5 dark:bg-white/[0.08] dark:hover:bg-white/[0.08]": isActive,
+          "hover:bg-black/5 dark:hover:bg-white/8": !isActive,
+          "bg-black/5 hover:bg-black/5 dark:bg-white/8 dark:hover:bg-white/8": isActive,
         })}
       >
         <span

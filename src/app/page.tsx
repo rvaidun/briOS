@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 import { ArrowUpRight } from "@/components/icons/ArrowUpRight";
-import { DoorDashIcon, GitHubIcon, XIcon } from "@/components/icons/SocialIcons";
+import { Mail } from "@/components/icons/Mail";
+import { DoorDashIcon, GitHubIcon } from "@/components/icons/SocialIcons";
 import {
   InlineLink,
   List,
@@ -164,9 +165,9 @@ export default function Home() {
 // Data arrays
 const socials = [
   {
-    name: "X",
-    href: "https://x.com/rahooolv",
-    icon: XIcon,
+    name: "Email",
+    href: "mailto:rahul.vaidun@gmail.com",
+    icon: Mail,
   },
   {
     name: "GitHub",

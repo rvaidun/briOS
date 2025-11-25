@@ -7,17 +7,16 @@ export async function GET() {
   try {
     // Create the feed
     const feed = new Feed({
-      title: `${SITE_CONFIG.name} - Writing`,
+      title: `${SITE_CONFIG.name} - Blog`,
       description: "Essays, guides, and thoughts on design, engineering, and product development",
-      id: `${SITE_CONFIG.url}/writing`,
-      link: `${SITE_CONFIG.url}/writing`,
+      id: `${SITE_CONFIG.url}/blog`,
+      link: `${SITE_CONFIG.url}/blog`,
       language: "en",
-      image: `${SITE_CONFIG.url}/api/og`,
       favicon: `${SITE_CONFIG.url}/favicon.ico`,
       copyright: `All rights reserved ${new Date().getFullYear()}, ${SITE_CONFIG.author.name}`,
       updated: new Date(),
       feedLinks: {
-        rss: `${SITE_CONFIG.url}/writing/rss.xml`,
+        rss: `${SITE_CONFIG.url}/blog/rss.xml`,
       },
       author: {
         name: SITE_CONFIG.author.name,
@@ -30,7 +29,7 @@ export async function GET() {
 
     // Add each post to the feed
     posts.forEach((post) => {
-      const postUrl = `${SITE_CONFIG.url}/writing/${post.slug}`;
+      const postUrl = `${SITE_CONFIG.url}/blog/${post.slug}`;
       const publishDate = new Date(post.published || post.createdTime);
 
       feed.addItem({

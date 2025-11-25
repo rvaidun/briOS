@@ -41,7 +41,7 @@ export async function generateMetadata(props: {
   return createMetadata({
     title: metadata.title,
     description: truncateDescription(description),
-    path: `/writing/${slug}`,
+    path: `/blog/${slug}`,
     type: "article",
     publishedTime: metadata.published || metadata.createdTime,
     modifiedTime: metadata.createdTime,
@@ -79,7 +79,7 @@ export default async function WritingPostPage(props: { params: Promise<{ slug: s
   const articleJsonLd = createArticleJsonLd({
     title: metadata.title,
     description: metadata.excerpt || "A post by Rahul Vaidun",
-    path: `/writing/${slug}`,
+    path: `/blog/${slug}`,
     publishedTime: metadata.published || metadata.createdTime,
     modifiedTime: metadata.createdTime,
   });
@@ -92,8 +92,8 @@ export default async function WritingPostPage(props: { params: Promise<{ slug: s
       />
       <TopBar className="pr-3">
         <div className="flex flex-1 items-center gap-2">
-          <Link href="/writing" className="hover:text-primary text-secondary text-sm font-medium">
-            Writing
+          <Link href="/blog" className="hover:text-primary text-secondary text-sm font-medium">
+            Blog
           </Link>
           <div className="text-quaternary text-sm font-medium">/</div>
           <div className="line-clamp-1 text-sm font-medium">{metadata.title}</div>
@@ -129,7 +129,7 @@ export default async function WritingPostPage(props: { params: Promise<{ slug: s
               <h2 className="text-tertiary text-base">Read next</h2>
               <List>
                 {randomPosts.map((post) => (
-                  <ListItem key={post.id} href={`/writing/${post.slug}`}>
+                  <ListItem key={post.id} href={`/blog/${post.slug}`}>
                     <ListItemLabel>{post.title}</ListItemLabel>
                   </ListItem>
                 ))}

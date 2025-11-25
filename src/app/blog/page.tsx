@@ -12,10 +12,10 @@ import { createMetadata } from "@/lib/metadata";
 import { getAllWritingPosts } from "@/lib/writing";
 
 export const metadata: Metadata = createMetadata({
-  title: "Writing",
+  title: "Blog",
   description:
     "Thoughts on design, engineering, and building products. Essays and reflections from Rahul Vaidun.",
-  path: "/writing",
+  path: "/blog",
 });
 
 export default async function WritingPage() {
@@ -49,7 +49,7 @@ export default async function WritingPage() {
                 {postsByYear[year]
                   .filter((post) => post.slug) // Only show posts that have slugs
                   .map((post) => (
-                    <ListItem key={post.id} href={`/writing/${post.slug}`}>
+                    <ListItem key={post.id} href={`/blog/${post.slug}`}>
                       <ListItemLabel className="line-clamp-none">{post.title}</ListItemLabel>
                     </ListItem>
                   ))}

@@ -1,11 +1,18 @@
 {
   "props": {
-    "tes": {
-      "id": "_%5EJ%5B",
-      "name": "tes",
+    "Slug": {
+      "id": "CSr~",
+      "name": "Slug",
       "description": null,
       "type": "rich_text",
       "rich_text": {}
+    },
+    "Published": {
+      "id": "_%5EJ%5B",
+      "name": "Published",
+      "description": null,
+      "type": "date",
+      "date": {}
     },
     "Name": {
       "id": "title",

@@ -11,13 +11,10 @@ export const SITE_CONFIG = {
   url: "https://rahulvaidun.com",
   author: {
     name: "Rahul Vaidun",
-    twitter: "@rahooolv",
-    twitterUrl: "https://x.com/rahooolv",
     github: "https://github.com/rvaidun",
   },
   social: {
     twitter: {
-      handle: "@rahooolv",
       cardType: "summary_large_image" as const,
     },
   },

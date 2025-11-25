@@ -4,7 +4,8 @@
 import { z } from "zod";
 
 export const WritingSchema = z.object({
-  tes: z.string().optional(),
+  Slug: z.string().optional(),
+  Published: z.string().optional(),
   Name: z.string().optional(),
 });
 

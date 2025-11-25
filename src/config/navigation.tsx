@@ -26,12 +26,12 @@ export const navigationItems: NavigationItem[] = [
     section: "main",
   },
   {
-    id: "writing",
-    label: "Writing",
-    href: "/writing",
+    id: "blog",
+    label: "Blog",
+    href: "/blog",
     icon: FileText2,
     keywords: ["writing", "blog", "posts"],
-    isActive: (pathname) => pathname.startsWith("/writing"),
+    isActive: (pathname) => pathname.startsWith("/blog"),
     section: "main",
   },
   // {

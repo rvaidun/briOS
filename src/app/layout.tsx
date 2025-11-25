@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   ...DEFAULT_METADATA,
   alternates: {
     types: {
-      "application/rss+xml": `${SITE_CONFIG.url}/writing/rss.xml`,
+      "application/rss+xml": `${SITE_CONFIG.url}/blog/rss.xml`,
     },
   },
 };

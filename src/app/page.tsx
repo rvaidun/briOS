@@ -50,10 +50,10 @@ export default function Home() {
               <p>
                 Hey, I&apos;m Rahul. I&apos;m a
                 <InlineLink href="https://github.com/rvaidun">developer</InlineLink>
-                and graduated from the
+                and graduated from the{" "}
                 <InlineLink href="https://ucsc.edu">
                   University of California at Santa Cruz
-                </InlineLink>
+                </InlineLink>{" "}
                 with a B.S. in Computer Science in June 2023. I&apos;m currently working at{" "}
                 <InlineLink href="https://www.doordash.com/">DoorDash</InlineLink> as a Software
                 Engineer. I am working on the Catalog build team to help onboard merchants in the
@@ -150,6 +150,10 @@ export default function Home() {
                 ))}
               </List>
             </Section>
+            <footer className="text-secondary border-t border-white/10 pt-4 text-center text-xs">
+              Heavily inspired by{" "}
+              <InlineLink href="https://brianlovin.com/">Brian Lovin</InlineLink>
+            </footer>
           </div>
         </div>
       </div>
@@ -181,25 +185,25 @@ const projects = [
   {
     name: "Data Visualization and Analysis for Animal Testing",
     href: "https://staff.design",
-    description: "Navigating the IC career path",
+    description: "Data analysis and visualization project",
     external: true,
   },
   {
     name: "Population Density Visualization",
     href: "https://rahulvaidun.com/CSE-163-HW7-Maryland-Population-Density/",
-    description: "App design critique",
+    description: "A visualization of population density in Maryland",
     external: true,
   },
   {
     name: "BeFake",
     href: "https://github.com/rvaidun/befake",
-    description: "A podcast about design and technology",
+    description: "A BeReal web app",
     external: true,
   },
   {
     name: "Document Generator",
     href: "https://github.com/rvaidun/Document-Generator",
-    description: "Get good at computering",
+    description: "Generate fake school like documents",
     external: true,
   },
 ];

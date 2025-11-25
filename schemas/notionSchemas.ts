@@ -4,12 +4,11 @@
 import { z } from "zod";
 
 export const MusicSchema = z.object({
-  image: z.string().optional(),
-  album: z.string().optional(),
-  url: z.string().optional(),
-  playedAt: z.string().optional(),
-  artist: z.string().optional(),
-  name: z.string().optional(),
+  Album: z.string().optional(),
+  "Spotify URL": z.string().optional(),
+  "Played At": z.string().optional(),
+  Artist: z.string().optional(),
+  Name: z.string().optional(),
 });
 
 export type Music = z.infer<typeof MusicSchema>;

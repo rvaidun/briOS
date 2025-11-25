@@ -1,43 +1,36 @@
 {
   "props": {
-    "image": {
-      "id": "L%5EIi",
-      "name": "image",
-      "description": null,
-      "type": "url",
-      "url": {}
-    },
-    "album": {
+    "Album": {
       "id": "b%3ADb",
-      "name": "album",
+      "name": "Album",
       "description": null,
       "type": "rich_text",
       "rich_text": {}
     },
-    "url": {
+    "Spotify URL": {
       "id": "l%3ELJ",
-      "name": "url",
+      "name": "Spotify URL",
       "description": null,
       "type": "url",
       "url": {}
     },
-    "playedAt": {
+    "Played At": {
       "id": "p%3FLJ",
-      "name": "playedAt",
+      "name": "Played At",
       "description": null,
       "type": "date",
       "date": {}
     },
-    "artist": {
+    "Artist": {
       "id": "sRd%3C",
-      "name": "artist",
+      "name": "Artist",
       "description": null,
       "type": "rich_text",
       "rich_text": {}
     },
-    "name": {
+    "Name": {
       "id": "title",
-      "name": "name",
+      "name": "Name",
       "description": null,
       "type": "title",
       "title": {}

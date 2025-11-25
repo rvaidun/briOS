@@ -131,6 +131,23 @@
   }
 }
 
+/* Make body overflow viewport on mobile iOS to collapse Safari URL bar */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    html,
+    body {
+      height: auto;
+      min-height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    body {
+      padding-bottom: 1px;
+    }
+  }
+}
+
 .prose {
   --tw-prose-body: var(--text-color-secondary);
   --tw-prose-headings: var(--text-color-secondary);

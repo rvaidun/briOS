@@ -60,9 +60,10 @@ export function ClientShell({ children }: PropsWithChildren) {
       <CommandMenu />
       <main
         className={cn(
-          "relative isolate mx-auto flex h-svh w-full max-w-400 overflow-hidden md:p-2",
+          "relative isolate mx-auto flex w-full max-w-400 md:h-svh md:overflow-hidden md:p-2",
           {
             invisible: !isHydrated,
+            "min-h-screen": isSmallScreen,
           },
         )}
       >

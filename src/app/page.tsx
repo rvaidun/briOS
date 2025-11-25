@@ -183,15 +183,15 @@ const projects = [
     external: true,
   },
   {
-    name: "Data Visualization and Analysis for Animal Testing",
-    href: "https://staff.design",
-    description: "Data analysis and visualization project",
+    name: "Animal Testing Data Visualization",
+    href: "https://gh.rahulvaidun.com/CSE-163-Final-Project/",
+    description: "A visualization of animal testing data",
     external: true,
   },
   {
     name: "Population Density Visualization",
-    href: "https://rahulvaidun.com/CSE-163-HW7-Maryland-Population-Density/",
-    description: "A visualization of population density in Maryland",
+    href: "https://gh.rahulvaidun.com/CSE-163-HW7-Maryland-Population-Density/",
+    description: "Population density Maryland",
     external: true,
   },
   {

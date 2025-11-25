@@ -24,7 +24,7 @@ export default async function ListeningPage() {
         </div>
       </TopBar>
 
-      <div className="pt-11 md:pt-0">
+      <div className="flex flex-1 flex-col pt-11 md:pt-0">
         <ListeningHistory initialData={[initialPage]} />
       </div>
     </div>

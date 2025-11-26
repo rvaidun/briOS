@@ -225,7 +225,7 @@ const work: WorkItem[] = [
     name: "DoorDash",
     href: "https://doordash.com",
     role: "Software Engineer",
-    period: "Current",
+    period: "2025-",
     icon: {
       type: "svg",
       component: DoorDashIcon,
@@ -276,14 +276,14 @@ const work: WorkItem[] = [
     },
   },
   {
-    name: "S V Financials",
+    name: "SV Financials",
     href: "https://svfinancials.com",
     role: "Accountant",
-    period: "2020 - Current",
+    period: "2020-",
     icon: {
       type: "image",
       src: "/img/svf.png",
-      alt: "S V Financials",
+      alt: "SV Financials",
     },
   },
 ];

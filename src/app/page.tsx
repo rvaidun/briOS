@@ -57,13 +57,13 @@ export default function Home() {
                 </InlineLink>{" "}
                 with a B.S. in Computer Science in June 2023. I&apos;m currently working at{" "}
                 <InlineLink href="https://www.doordash.com/">DoorDash</InlineLink> as a Software
-                Engineer. I am working on the Catalog build team to help onboard merchants in the
-                New Verticals space onto the platform.
+                Engineer. I am working on the Catalog build team to help onboard Retail, Grocery and
+                Liquor merchant SKUs onto the DoorDash catalog.
               </p>
               <p>
                 I&apos;m also working at{" "}
-                <InlineLink href="http://svfinancials.com/">S V Financials</InlineLink>, automating
-                giving rate quotes for client scenarios.
+                <InlineLink href="http://svfinancials.com/">S V Financials</InlineLink>, as an
+                accountant.
               </p>
 
               <p>

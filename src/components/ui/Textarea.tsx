@@ -25,10 +25,11 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     }, [adjustHeight, props.value]);
 
     const handleInput = React.useCallback(
-      (e: React.FormEvent<HTMLTextAreaElement>) => {
+      (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
         adjustHeight();
         if (onInput) {
-          onInput(e);
+          // Cast to unknown to satisfy differing onInput event signatures
+          (onInput as unknown as (ev: typeof e) => void)(e as unknown as any);
         }
       },
       [adjustHeight, onInput],
@@ -37,7 +38,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <textarea
         className={cn(
-          "dark:shadow-contrast bg-secondary ring-offset-primary placeholder:text-tertiary flex min-h-[80px] w-full rounded-md border px-3 py-2 text-sm focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-0 dark:bg-white/5",
+          "dark:shadow-contrast bg-secondary ring-offset-primary placeholder:text-tertiary flex min-h-20 w-full rounded-md border px-3 py-2 text-sm focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-0 dark:bg-white/5",
           autoResize && "resize-none overflow-hidden",
           className,
         )}

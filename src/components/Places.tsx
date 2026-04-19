@@ -58,7 +58,9 @@ function PlacesRow({ item }: PlacesRowProps) {
           </div>
         )}
         {item.note && (
-          <div className="text-tertiary mt-1 truncate text-sm italic md:hidden">{item.note}</div>
+          <div className="text-tertiary mt-1 text-sm break-words italic md:hidden">
+            {item.note}
+          </div>
         )}
       </div>
 
@@ -136,8 +138,14 @@ export function Places({ initialData }: PlacesProps = {}) {
   const virtualizer = useVirtualizer({
     count: !isReachingEnd ? places.length + 1 : places.length,
     getScrollElement: () => (isMobile ? document.documentElement : parentRef.current),
-    estimateSize: () => (isMobile ? 74 : 40),
+    estimateSize: () => (isMobile ? 96 : 40),
     overscan: 10,
+    // Measure each rendered row's real height so multi-line notes on mobile
+    // don't cause overlap or gaps.
+    measureElement:
+      typeof ResizeObserver !== "undefined"
+        ? (el) => el?.getBoundingClientRect().height
+        : undefined,
   });
 
   const items = virtualizer.getVirtualItems();
@@ -237,18 +245,21 @@ export function Places({ initialData }: PlacesProps = {}) {
             return (
               <div
                 key={virtualItem.key}
+                ref={virtualizer.measureElement}
+                data-index={virtualItem.index}
                 style={{
                   position: "absolute",
                   top: 0,
                   left: 0,
                   width: "100%",
-                  height: `${virtualItem.size}px`,
                   transform: `translateY(${virtualItem.start}px)`,
                 }}
                 className="border-secondary hover:bg-secondary relative border-b dark:hover:bg-white/5"
               >
                 {isLoaderRow ? (
-                  <LoaderRow isReachingEnd={isReachingEnd} />
+                  <div className="flex h-10 items-center justify-center">
+                    <LoaderRow isReachingEnd={isReachingEnd} />
+                  </div>
                 ) : item ? (
                   <PlacesRow item={item} />
                 ) : null}

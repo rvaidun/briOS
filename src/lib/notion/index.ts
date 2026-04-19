@@ -14,6 +14,7 @@ export type {
   NotionDesignDetailsEpisodeItem,
   NotionItem,
   NotionListeningHistoryItem,
+  NotionPlacesItem,
   NotionStackItem,
   PageObjectResponse,
   PageResponse,
@@ -41,6 +42,8 @@ export {
   getFullContent,
   // Listening History
   getListeningHistoryDatabaseItems,
+  // Places
+  getPlacesDatabaseItems,
   // Writing
   getWritingDatabaseItems,
   getWritingPostContent,

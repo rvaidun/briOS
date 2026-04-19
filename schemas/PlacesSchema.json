@@ -1,0 +1,123 @@
+{
+  "props": {
+    "Tags": {
+      "id": "Bago",
+      "name": "Tags",
+      "description": null,
+      "type": "multi_select",
+      "multi_select": {
+        "options": []
+      }
+    },
+    "Map URL": {
+      "id": "IaWB",
+      "name": "Map URL",
+      "description": null,
+      "type": "url",
+      "url": {}
+    },
+    "City": {
+      "id": "kdl%60",
+      "name": "City",
+      "description": null,
+      "type": "rich_text",
+      "rich_text": {}
+    },
+    "Category": {
+      "id": "rdxe",
+      "name": "Category",
+      "description": null,
+      "type": "select",
+      "select": {
+        "options": [
+          {
+            "id": "57140434-18f0-48f3-8fef-ec4dbf26f577",
+            "name": "Halal restaurant",
+            "color": "red",
+            "description": null
+          },
+          {
+            "id": "a162541c-4182-476d-85e0-3cd8e3b02398",
+            "name": "Cocktail bar",
+            "color": "yellow",
+            "description": null
+          },
+          {
+            "id": "87563579-c022-47d4-a550-91feb8930d10",
+            "name": "Bakery",
+            "color": "gray",
+            "description": null
+          },
+          {
+            "id": "2dd72be1-090e-43d3-93e5-49c68c0d9619",
+            "name": "Pizza restaurant",
+            "color": "green",
+            "description": null
+          },
+          {
+            "id": "e6357b26-4104-4aa0-936d-510ee41214a1",
+            "name": "Bar",
+            "color": "orange",
+            "description": null
+          },
+          {
+            "id": "a15296fc-729d-4b9f-a808-148aa2eff1d7",
+            "name": "Dumpling restaurant",
+            "color": "pink",
+            "description": null
+          },
+          {
+            "id": "b2ba54e3-7daa-4439-9a9f-5537cbc6af68",
+            "name": "Taiwanese restaurant",
+            "color": "blue",
+            "description": null
+          },
+          {
+            "id": "ec9af520-7dbb-4278-80de-d5cc6de5595f",
+            "name": "Italian restaurant",
+            "color": "brown",
+            "description": null
+          },
+          {
+            "id": "3dc616ca-d7af-487a-8ec3-37bded5ec5d5",
+            "name": "Sandwich shop",
+            "color": "default",
+            "description": null
+          },
+          {
+            "id": "26cd79ac-9881-4dd9-8a78-cd41ff902520",
+            "name": "Chinese bakery",
+            "color": "purple",
+            "description": null
+          },
+          {
+            "id": "3633ca1c-aed4-47b2-8912-de93bf81fcf0",
+            "name": "Cafe",
+            "color": "pink",
+            "description": null
+          },
+          {
+            "id": "924994b1-bdd4-49de-9248-198aa151d447",
+            "name": "Restaurant",
+            "color": "orange",
+            "description": null
+          }
+        ]
+      }
+    },
+    "Notes": {
+      "id": "tPkX",
+      "name": "Notes",
+      "description": null,
+      "type": "rich_text",
+      "rich_text": {}
+    },
+    "Name": {
+      "id": "title",
+      "name": "Name",
+      "description": null,
+      "type": "title",
+      "title": {}
+    }
+  }
+}

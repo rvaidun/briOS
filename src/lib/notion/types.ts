@@ -125,6 +125,17 @@ export type NotionListeningHistoryItem = {
   image?: string;
 };
 
+// Places item type
+export type NotionPlacesItem = {
+  id: string;
+  name: string;
+  city: string;
+  category: string;
+  mapUrl?: string;
+  tags: string[];
+  note?: string;
+};
+
 // Design Details episode item type
 export type NotionDesignDetailsEpisodeItem = {
   id: string;

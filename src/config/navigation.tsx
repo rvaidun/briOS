@@ -3,6 +3,7 @@ import React from "react";
 import { FileText2 } from "@/components/icons/FileText2";
 import { Headphones3 } from "@/components/icons/Headphones3";
 import { Home } from "@/components/icons/Home";
+import { PinOnMap } from "@/components/icons/PinOnMap";
 import { IconProps } from "@/components/icons/types";
 
 export interface NavigationItem {
@@ -42,6 +43,16 @@ export const navigationItems: NavigationItem[] = [
     icon: Headphones3,
     keywords: ["listening", "music", "audio"],
     isActive: (pathname) => pathname === "/listening",
+    section: "main",
+  },
+
+  {
+    id: "places",
+    label: "Places",
+    href: "/places",
+    icon: PinOnMap,
+    keywords: ["places", "travel", "favorites", "cities", "map"],
+    isActive: (pathname) => pathname === "/places",
     section: "main",
   },
 ];

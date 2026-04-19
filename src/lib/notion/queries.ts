@@ -6,6 +6,7 @@ import {
   hasProperties,
   type NotionItem,
   type NotionListeningHistoryItem,
+  type NotionPlacesItem,
   type ProcessedBlock,
 } from "./types";
 // ===== Generic Content Retrieval =====
@@ -237,6 +238,62 @@ export async function getListeningHistoryDatabaseItems(
     };
   } catch (error) {
     console.error("Error fetching listening history items:", error);
+    return { items: [], nextCursor: null };
+  }
+}
+
+// ===== Places Database =====
+
+export async function getPlacesDatabaseItems(
+  cursor?: string,
+  pageSize: number = 50,
+): Promise<{ items: NotionPlacesItem[]; nextCursor: string | null }> {
+  try {
+    const databaseId = process.env.NOTION_PLACES_DATABASE_ID || "";
+    const response = await notion.databases.query({
+      database_id: databaseId,
+      page_size: pageSize,
+      ...(cursor ? { start_cursor: cursor } : {}),
+      sorts: [
+        {
+          property: "Name",
+          direction: "ascending",
+        },
+      ],
+    });
+
+    const items = response.results
+      .map((page) => {
+        if (!hasProperties(page)) return null;
+
+        const pageWithProps = page as PageObjectResponse;
+        const properties = pageWithProps.properties as {
+          Name?: { title: { plain_text: string }[] };
+          City?: { rich_text: { plain_text: string }[] };
+          Category?: { select: { name: string } | null };
+          "Map URL"?: { url: string | null };
+          Tags?: { multi_select: { name: string }[] };
+          Notes?: { rich_text: { plain_text: string }[] };
+        };
+
+        return {
+          id: pageWithProps.id,
+          name: properties.Name?.title[0]?.plain_text || "Untitled",
+          city: properties.City?.rich_text[0]?.plain_text || "",
+          category: properties.Category?.select?.name || "",
+          mapUrl: properties["Map URL"]?.url || undefined,
+          tags: properties.Tags?.multi_select?.map((t) => t.name) || [],
+          note: properties.Notes?.rich_text?.map((t) => t.plain_text).join("") || undefined,
+        } as NotionPlacesItem;
+      })
+      .filter((item): item is NotionPlacesItem => item !== null);
+
+    return {
+      items,
+      nextCursor: response.has_more ? (response.next_cursor as string) : null,
+    };
+  } catch (error) {
+    console.error("Error fetching places items:", error);
     return { items: [], nextCursor: null };
   }
 }

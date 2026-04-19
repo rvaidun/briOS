@@ -36,9 +36,43 @@ interface PlacesRowProps {
   item: PlaceItem;
 }
 
-function PlacesRow({ item }: PlacesRowProps) {
+function NoteToggle({
+  note,
+  expanded,
+  onToggle,
+  className,
+}: {
+  note: string;
+  expanded: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
   return (
-    <div className="flex h-full gap-3 px-4 py-3 text-sm md:items-center md:gap-4 md:py-1.5">
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggle();
+      }}
+      aria-expanded={expanded}
+      className={cn(
+        "text-tertiary hover:text-secondary relative z-10 w-full cursor-pointer text-left italic",
+        expanded ? "break-words" : "truncate",
+        className,
+      )}
+    >
+      {note}
+    </button>
+  );
+}
+
+function PlacesRow({ item }: PlacesRowProps) {
+  const [noteExpanded, setNoteExpanded] = useState(false);
+  const toggleNote = () => setNoteExpanded((v) => !v);
+
+  return (
+    <div className="flex h-full gap-3 px-4 py-3 text-sm md:items-start md:gap-4 md:py-2">
       {item.mapUrl && (
         <Link
           target="_blank"
@@ -58,9 +92,12 @@ function PlacesRow({ item }: PlacesRowProps) {
           </div>
         )}
         {item.note && (
-          <div className="text-tertiary mt-1 text-sm break-words italic md:hidden">
-            {item.note}
-          </div>
+          <NoteToggle
+            note={item.note}
+            expanded={noteExpanded}
+            onToggle={toggleNote}
+            className="mt-1 text-sm md:hidden"
+          />
         )}
       </div>
 
@@ -68,8 +105,10 @@ function PlacesRow({ item }: PlacesRowProps) {
       <div className="hidden min-w-[150px] flex-1 truncate md:block">
         {item.category ? <Pill label={item.category} /> : null}
       </div>
-      <div className="text-tertiary hidden min-w-[240px] flex-1 truncate italic md:block">
-        {item.note}
+      <div className="hidden min-w-[240px] flex-1 md:block">
+        {item.note && (
+          <NoteToggle note={item.note} expanded={noteExpanded} onToggle={toggleNote} />
+        )}
       </div>
     </div>
   );

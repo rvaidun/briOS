@@ -270,19 +270,17 @@ def fetch_places(url_or_id: str, with_details: bool = True) -> list[dict]:
     return places
 
 
-# ===== Notion upsert =====
+# ===== Notion sync =====
 #
-# Matching: by Map URL (stable CID-based). Place not found by Map URL is
-# created; place that's in Notion but no longer in the Google list is ignored
-# (we don't auto-delete).
-#
-# Merge policy (preserves manual edits in Notion):
-#   - On CREATE: write every field we have, even if blank, so Notion has the
-#     row laid out and the user can fill blanks later.
-#   - On UPDATE: only write fields for which Google returned a non-empty
-#     value. Anything Google doesn't know (empty/null) is left untouched so
-#     manually-entered data isn't clobbered.
-#   - Tags: user-managed. Never touched by the sync.
+# Matching: by Map URL (stable CID-based).
+#   - Place NOT in Notion → created with every field we have (blanks included,
+#     so the row has a complete shape for the user to fill in later).
+#   - Place already in Notion → ONLY the Notes field is overwritten from the
+#     Google Maps note (so notes written in the Maps app flow through). Every
+#     other column (Name, Category, City, Map URL) is left alone so manual
+#     edits survive. If Google has no note for that place, the row is skipped
+#     entirely — manual Notion notes aren't blanked out.
+#   - Place removed from the Google list → left alone in Notion (no deletes).
 #
 # Writes are parallelized with 3 concurrent workers — under Notion's 3 req/sec
 # soft limit.
@@ -332,9 +330,30 @@ def _notion_request(method: str, path: str, token: str, body: dict | None = None
         raise RuntimeError(f"Notion API {method} {path} failed ({e.code}): {err_body}") from e
 
 
-def _fetch_existing_by_map_url(database_id: str, token: str) -> dict[str, str]:
-    """Return {map_url: page_id} for every existing row that has a Map URL."""
-    out: dict[str, str] = {}
+def _build_create_props(place: dict) -> dict:
+    """Build a Notion properties payload for a NEW row.
+
+    Includes every field we know about (blanks included) so the row has a
+    complete shape for the user to fill in manually later.
+    """
+    name = place["name"]
+    city = place.get("city") or ""
+    note = place.get("note") or ""
+    map_url = place.get("map_url") or None
+    category = place.get("primary_category")
+
+    return {
+        "Name": {"title": [{"text": {"content": name}}]},
+        "City": {"rich_text": [{"text": {"content": city}}] if city else []},
+        "Map URL": {"url": map_url},
+        "Notes": {"rich_text": [{"text": {"content": note}}] if note else []},
+        "Category": {"select": {"name": category}} if category else {"select": None},
+    }
+
+
+def _fetch_existing_rows(database_id: str, token: str) -> dict[str, dict]:
+    """Return {map_url: {page_id, note}} so we can compare existing notes."""
+    out: dict[str, dict] = {}
     cursor: str | None = None
     while True:
         body: dict = {"page_size": 100}
@@ -342,71 +361,44 @@ def _fetch_existing_by_map_url(database_id: str, token: str) -> dict[str, str]:
             body["start_cursor"] = cursor
         data = _notion_request("POST", f"databases/{database_id}/query", token, body)
         for page in data.get("results", []):
-            map_url = page.get("properties", {}).get("Map URL", {}).get("url")
-            if map_url:
-                out[map_url] = page["id"]
+            props = page.get("properties", {})
+            map_url = props.get("Map URL", {}).get("url")
+            if not map_url:
+                continue
+            note_rts = props.get("Notes", {}).get("rich_text", []) or []
+            current_note = "".join(rt.get("plain_text", "") for rt in note_rts)
+            out[map_url] = {"page_id": page["id"], "note": current_note}
         if not data.get("has_more"):
             break
         cursor = data.get("next_cursor")
     return out
 
 
-def _build_notion_props(place: dict, *, is_create: bool) -> dict:
-    """Build a Notion properties payload.
-
-    On create: include every field (even blank ones) so the row has a
-    complete shape.
-    On update: include only fields Google returned a non-empty value for,
-    so manual Notion edits are preserved.
-    """
-    props: dict = {
-        "Name": {"title": [{"text": {"content": place["name"]}}]},
-    }
-
-    city = place.get("city")
-    if city:
-        props["City"] = {"rich_text": [{"text": {"content": city}}]}
-    elif is_create:
-        props["City"] = {"rich_text": []}
-
-    map_url = place.get("map_url")
-    if map_url:
-        props["Map URL"] = {"url": map_url}
-    elif is_create:
-        props["Map URL"] = {"url": None}
-
-    note = place.get("note")
-    if note:
-        props["Notes"] = {"rich_text": [{"text": {"content": note}}]}
-    elif is_create:
-        props["Notes"] = {"rich_text": []}
-
-    category = place.get("primary_category")
-    if category:
-        props["Category"] = {"select": {"name": category}}
-    elif is_create:
-        props["Category"] = {"select": None}
-
-    return props
-
-
-def upsert_to_notion(places: list[dict], database_id: str, token: str) -> tuple[int, int, int]:
-    existing = _fetch_existing_by_map_url(database_id, token)
+def upsert_to_notion(
+    places: list[dict], database_id: str, token: str
+) -> tuple[int, int, int, int]:
+    existing = _fetch_existing_rows(database_id, token)
     print(f"existing rows with Map URL: {len(existing)}", file=sys.stderr)
 
-    creates: list[dict] = []
-    updates: list[tuple[str, dict]] = []  # (page_id, place)
-    skipped = 0
+    to_create: list[dict] = []
+    to_update_note: list[tuple[str, dict]] = []  # (page_id, place)
+    unchanged = 0
+    skipped_no_url = 0
+
     for place in places:
         map_url = place.get("map_url")
         if not map_url:
-            skipped += 1
+            skipped_no_url += 1
             continue
-        page_id = existing.get(map_url)
-        if page_id:
-            updates.append((page_id, place))
+        existing_row = existing.get(map_url)
+        if existing_row is None:
+            to_create.append(place)
+            continue
+        google_note = place.get("note") or ""
+        if google_note and google_note != existing_row["note"]:
+            to_update_note.append((existing_row["page_id"], place))
         else:
-            creates.append(place)
+            unchanged += 1
 
     def do_create(place: dict) -> str:
         _notion_request(
@@ -415,38 +407,32 @@ def upsert_to_notion(places: list[dict], database_id: str, token: str) -> tuple[
             token,
             {
                 "parent": {"database_id": database_id},
-                "properties": _build_notion_props(place, is_create=True),
+                "properties": _build_create_props(place),
             },
         )
         return f"  created: {place['name']}"
 
-    def do_update(page_id: str, place: dict) -> str | None:
-        props = _build_notion_props(place, is_create=False)
-        # Drop the Name field if the update has nothing else to write — name
-        # is required, but updating name alone has no effect we care about.
-        if set(props.keys()) == {"Name"}:
-            return None
-        _notion_request("PATCH", f"pages/{page_id}", token, {"properties": props})
-        return f"  updated: {place['name']}"
+    def do_update_note(page_id: str, place: dict) -> str:
+        note = place.get("note") or ""
+        _notion_request(
+            "PATCH",
+            f"pages/{page_id}",
+            token,
+            {
+                "properties": {
+                    "Notes": {"rich_text": [{"text": {"content": note}}]},
+                }
+            },
+        )
+        return f"  note-updated: {place['name']}"
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=NOTION_CONCURRENCY) as ex:
-        futures = [ex.submit(do_create, p) for p in creates]
-        futures += [ex.submit(do_update, pid, p) for pid, p in updates]
-        updated = 0
-        noop = 0
+        futures = [ex.submit(do_create, p) for p in to_create]
+        futures += [ex.submit(do_update_note, pid, p) for pid, p in to_update_note]
         for f in concurrent.futures.as_completed(futures):
-            msg = f.result()
-            if msg is None:
-                noop += 1
-            else:
-                print(msg, file=sys.stderr)
-                if msg.startswith("  updated"):
-                    updated += 1
+            print(f.result(), file=sys.stderr)
 
-    created = len(creates)
-    if noop:
-        print(f"  {noop} existing rows had nothing to update", file=sys.stderr)
-    return created, updated, skipped
+    return len(to_create), len(to_update_note), unchanged, skipped_no_url
 
 
 def main() -> int:
@@ -464,8 +450,10 @@ def main() -> int:
     parser.add_argument(
         "--upsert",
         action="store_true",
-        help="Upsert places into the Notion database (requires NOTION_TOKEN and "
-        "NOTION_PLACES_DATABASE_ID env vars or .env file)",
+        help="Create new places in the Notion database, and sync the Notes "
+        "column on existing rows from the Google Maps note. All other "
+        "columns on existing rows are left untouched. Requires NOTION_TOKEN "
+        "and NOTION_PLACES_DATABASE_ID in env or .env.",
     )
     args = parser.parse_args()
 
@@ -483,9 +471,10 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
-        created, updated, skipped = upsert_to_notion(places, db_id, token)
+        created, note_updated, unchanged, skipped = upsert_to_notion(places, db_id, token)
         print(
-            f"upsert done: {created} created, {updated} updated, {skipped} skipped",
+            f"sync done: {created} created, {note_updated} notes updated, "
+            f"{unchanged} unchanged, {skipped} skipped (no map url)",
             file=sys.stderr,
         )
         return 0

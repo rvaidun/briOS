@@ -28,30 +28,15 @@ function notionPropToZod(prop: DatabaseProperty): string {
     case "date":
       // Represent dates as ISO strings for now
       return "z.string().optional()";
-    case "select": {
-      const optionsArr = prop.select.options;
-      if (optionsArr.length) {
-        const options = optionsArr.map((o) => `"${escapeForTypeScript(o.name)}"`).join(", ");
-        return `z.enum([${options}]).optional()`;
-      }
+    // select / multi_select / status: intentionally NOT generating z.enum from
+    // the current option list. Options are edited freely in Notion (added,
+    // renamed, removed) and we don't want the generated types to go stale or
+    // lock callers to a snapshot. Plain strings survive any option change.
+    case "select":
+    case "status":
       return "z.string().optional()";
-    }
-    case "multi_select": {
-      const optionsArr = prop.multi_select.options;
-      if (optionsArr.length) {
-        const options = optionsArr.map((o) => `"${escapeForTypeScript(o.name)}"`).join(", ");
-        return `z.array(z.enum([${options}])).optional()`;
-      }
+    case "multi_select":
       return "z.array(z.string()).optional()";
-    }
-    case "status": {
-      const optionsArr = prop.status.options;
-      if (optionsArr.length) {
-        const options = optionsArr.map((o) => `"${escapeForTypeScript(o.name)}"`).join(", ");
-        return `z.enum([${options}]).optional()`;
-      }
-      return "z.string().optional()";
-    }
     case "people":
       return "z.array(z.object({ id: z.string() })).optional()";
     case "files":

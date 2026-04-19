@@ -125,6 +125,54 @@
             "name": "Indian",
             "color": "pink",
             "description": null
+          },
+          {
+            "id": "07f9e6fc-7e1e-4a53-aa79-50ada5412a13",
+            "name": "Pizza Takeout",
+            "color": "red",
+            "description": null
+          },
+          {
+            "id": "2799cde2-5c81-484d-be2c-c20044efcfaa",
+            "name": "Pakistani restaurant",
+            "color": "pink",
+            "description": null
+          },
+          {
+            "id": "1281cd59-0ce9-4d1d-84e1-9525e26dee37",
+            "name": "Bubble tea store",
+            "color": "default",
+            "description": null
+          },
+          {
+            "id": "4405dc6b-629a-4172-bbac-ed6d3e0d8dfb",
+            "name": "Japanese restaurant",
+            "color": "brown",
+            "description": null
+          },
+          {
+            "id": "a569c1e4-6560-4eee-8ab0-c087bdc52c84",
+            "name": "Dessert shop",
+            "color": "green",
+            "description": null
+          },
+          {
+            "id": "46db199d-e54d-4586-bd6d-85d2010caf50",
+            "name": "Hot dog restaurant",
+            "color": "pink",
+            "description": null
+          },
+          {
+            "id": "5a44b95f-d73f-416b-b34b-03a4639653f8",
+            "name": "Asian",
+            "color": "blue",
+            "description": null
+          },
+          {
+            "id": "93962973-ad01-41b6-9f02-2c2585573ad2",
+            "name": "Chinese restaurant",
+            "color": "brown",
+            "description": null
           }
         ]
       }

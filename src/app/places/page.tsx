@@ -11,7 +11,7 @@ export const metadata: Metadata = createMetadata({
   path: "/places",
 });
 
-export const revalidate = 86400;
+export const revalidate = 3600;
 
 export default async function PlacesPage() {
   const initialPage = await getPlacesDatabaseItems(undefined, 20);

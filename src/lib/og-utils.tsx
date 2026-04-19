@@ -13,7 +13,11 @@ export const TERTIARY_COLOR = "#BFBFBF";
 
 // Font sizes
 export const TITLE_SIZE = 64;
+export const SUBTITLE_SIZE = 36;
 export const URL_SIZE = 32;
+
+// Subtitle color — sits between the primary (black) title and tertiary (gray) URL.
+export const SECONDARY_COLOR = "#525252";
 
 // Avatar
 export const AVATAR_SIZE = 100;
@@ -52,6 +56,7 @@ export async function loadAvatar(): Promise<string> {
 interface OGImageProps {
   title: string;
   url: string;
+  subtitle?: string;
 }
 
 /**
@@ -71,10 +76,10 @@ export function truncateOGTitle(title: string, maxLines: number = 3): string {
   return lastSpace > 0 ? `${truncated.slice(0, lastSpace)}...` : `${truncated}...`;
 }
 
-export async function generateOGImage({ title, url }: OGImageProps) {
+export async function generateOGImage({ title, url, subtitle }: OGImageProps) {
   try {
     // Combine all text for font loading
-    const allText = `${title}${url}`;
+    const allText = `${title}${subtitle ?? ""}${url}`;
 
     const [interRegularFont, interSemiBoldFont, avatarData] = await Promise.all([
       loadGoogleFont("Inter", 400, allText),
@@ -108,8 +113,8 @@ export async function generateOGImage({ title, url }: OGImageProps) {
           />
         </div>
 
-        {/* Title and URL at the bottom */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {/* Title, optional subtitle, and URL at the bottom */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div
             style={{
               fontSize: TITLE_SIZE,
@@ -126,12 +131,30 @@ export async function generateOGImage({ title, url }: OGImageProps) {
           >
             {title.length > 80 ? title.slice(0, 80) + "..." : title}
           </div>
+          {subtitle && (
+            <div
+              style={{
+                fontSize: SUBTITLE_SIZE,
+                fontFamily: "Inter",
+                fontWeight: 400,
+                color: SECONDARY_COLOR,
+                lineHeight: 1.3,
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {subtitle}
+            </div>
+          )}
           <div
             style={{
               fontSize: URL_SIZE,
               fontFamily: "Inter",
               fontWeight: 400,
               color: TERTIARY_COLOR,
+              marginTop: 8,
             }}
           >
             rahulvaidun.com

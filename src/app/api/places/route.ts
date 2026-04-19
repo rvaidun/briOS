@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     const cursor = searchParams.get("cursor") || undefined;
     const limit = parseInt(searchParams.get("limit") || "20", 10);
     const { items, nextCursor } = await getPlacesDatabaseItems(cursor, limit);
-    return cachedResponse({ items, nextCursor }, 86400);
+    return cachedResponse({ items, nextCursor }, 3600);
   } catch (error) {
     console.error("Error fetching places:", error);
     return errorResponse("Failed to fetch places");

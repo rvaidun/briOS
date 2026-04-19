@@ -52,8 +52,9 @@ function PlacesRow({ item }: PlacesRowProps) {
       <div className="min-w-0 flex-1 md:min-w-[180px]">
         <span className="text-primary block truncate font-medium">{item.name}</span>
         {(item.city || item.category) && (
-          <div className="text-tertiary truncate text-sm md:hidden">
-            {[item.city, item.category].filter(Boolean).join(" · ")}
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 md:hidden">
+            {item.city && <span className="text-tertiary truncate text-sm">{item.city}</span>}
+            {item.category && <Pill label={item.category} />}
           </div>
         )}
         {item.note && (

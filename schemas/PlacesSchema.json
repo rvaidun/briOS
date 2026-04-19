@@ -101,6 +101,30 @@
             "name": "Restaurant",
             "color": "orange",
             "description": null
+          },
+          {
+            "id": "5331b653-672b-4faf-9c69-53cb44a35e5a",
+            "name": "Deli",
+            "color": "default",
+            "description": null
+          },
+          {
+            "id": "5849ab63-92d8-43d5-bae8-ee21ead62cda",
+            "name": "Fast food restaurant",
+            "color": "gray",
+            "description": null
+          },
+          {
+            "id": "c9930398-c88b-4089-9961-a19c8fe829c0",
+            "name": "Indian Food",
+            "color": "green",
+            "description": null
+          },
+          {
+            "id": "54f97506-f6df-4eb7-8893-3d20d4f8f556",
+            "name": "Indian",
+            "color": "pink",
+            "description": null
           }
         ]
       }

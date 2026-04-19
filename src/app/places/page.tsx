@@ -9,8 +9,8 @@ import { getPlacesDatabaseItems } from "@/lib/notion";
 const MAPS_LIST_URL = "https://maps.app.goo.gl/dUUBfq5oMG35kj9i9";
 
 export const metadata: Metadata = createMetadata({
-  title: "Places",
-  description: "A few of my favorite places",
+  title: "places",
+  description: "that got the rahul stamp",
   path: "/places",
 });
 

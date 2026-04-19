@@ -12,8 +12,8 @@ export function usePlacesPaginated(initialData?: PlacesPage[]) {
   return useInfiniteScroll<PlaceItem>(
     (index: number, previousPage: PlacesPage | null) => {
       if (previousPage && !previousPage.nextCursor) return null;
-      if (index === 0) return `/api/places?limit=20`;
-      return `/api/places?cursor=${previousPage?.nextCursor}&limit=20`;
+      if (index === 0) return `/api/places?limit=100`;
+      return `/api/places?cursor=${previousPage?.nextCursor}&limit=100`;
     },
     {
       fallbackData: initialData,

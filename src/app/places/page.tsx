@@ -17,7 +17,9 @@ export const metadata: Metadata = createMetadata({
 export const revalidate = 3600;
 
 export default async function PlacesPage() {
-  const initialPage = await getPlacesDatabaseItems(undefined, 20);
+  // Fetch up to Notion's max (100) so the whole list is seeded in one page
+  // and the "X places" count doesn't flash from the server's first page.
+  const initialPage = await getPlacesDatabaseItems(undefined, 100);
 
   return (
     <div className="flex flex-1 flex-col">

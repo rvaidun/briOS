@@ -10,7 +10,7 @@ export const contentType = "image/png";
 
 export default async function Image() {
   return generateOGImage({
-    title: "Places",
+    title: "places",
     url: "rahulvaidun.com/places",
     subtitle: "that got the rahul stamp",
   });

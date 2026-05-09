@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   images: {
+    minimumCacheTTL: 604800,
     remotePatterns: [
       {
         protocol: "https",
@@ -24,6 +25,23 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "s3.us-west-2.amazonaws.com",
+      },
+      // Google Photos CDN
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "lh4.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "lh5.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "lh6.googleusercontent.com",
       },
     ],
   },

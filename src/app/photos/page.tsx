@@ -8,7 +8,7 @@ import { PhotosFeed } from "./PhotosFeed";
 
 export const metadata: Metadata = createMetadata({
   title: "photos",
-  description: "moments worth keeping",
+  description: "things i pointed my phone at",
   path: "/photos",
 });
 
@@ -24,14 +24,14 @@ export default async function PhotosPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col">
+    <>
       <TopBar>
         <div className="flex-1 text-sm font-semibold">Photos</div>
       </TopBar>
 
-      <div className="flex flex-col pt-11 md:flex-1 md:overflow-y-auto md:pt-0">
+      <div data-scrollable className="flex-1 overflow-y-auto pt-11 md:pt-0">
         <PhotosFeed initialData={[initialPage]} />
       </div>
-    </div>
+    </>
   );
 }

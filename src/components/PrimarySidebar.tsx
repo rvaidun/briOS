@@ -9,6 +9,7 @@ import React from "react";
 
 import { sidebarAtom } from "@/atoms/sidebar";
 import { DoubleChevronLeft } from "@/components/icons/DoubleChevronLeft";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { IconButton } from "@/components/ui/IconButton";
 import { getMainNavigationItems } from "@/config/navigation";
 import { useIsSmallScreen } from "@/hooks/useIsSmallScreen";
@@ -175,18 +176,28 @@ function SidebarHeader() {
         <span className="text-sm font-medium">Rahul Vaidun</span>
       </Link>
 
-      <IconButton
-        size="sm"
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "text-quaternary opacity-0 transition-opacity duration-200 group-hover/primary-sidebar:opacity-100",
-          {
-            "opacity-100": isOpen && isSmallScreen,
-          },
-        )}
-      >
-        <DoubleChevronLeft size={28} className="group-hover/button:text-primary" />
-      </IconButton>
+      <div className="flex items-center gap-1">
+        <ThemeToggle
+          className={cn(
+            "opacity-0 transition-opacity duration-200 group-hover/primary-sidebar:opacity-100",
+            {
+              "opacity-100": isOpen && isSmallScreen,
+            },
+          )}
+        />
+        <IconButton
+          size="sm"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            "text-quaternary opacity-0 transition-opacity duration-200 group-hover/primary-sidebar:opacity-100",
+            {
+              "opacity-100": isOpen && isSmallScreen,
+            },
+          )}
+        >
+          <DoubleChevronLeft size={28} className="group-hover/button:text-primary" />
+        </IconButton>
+      </div>
     </div>
   );
 }

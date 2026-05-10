@@ -12,7 +12,13 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <SWRConfig value={swrConfig}>
-      <ThemeProvider storageKey="prototype-theme" attribute="class" disableTransitionOnChange>
+      <ThemeProvider
+        storageKey="prototype-theme"
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
         {children}
       </ThemeProvider>
     </SWRConfig>

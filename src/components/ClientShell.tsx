@@ -1,6 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
+import { useTheme } from "next-themes";
 import { PropsWithChildren, useEffect, useLayoutEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Toaster } from "sonner";
@@ -17,6 +18,7 @@ export function ClientShell({ children }: PropsWithChildren) {
   const isSmallScreen = useIsSmallScreen();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isInitialMount, setIsInitialMount] = useState(true);
+  const { resolvedTheme, setTheme } = useTheme();
 
   useScrollDelegation();
 
@@ -47,6 +49,18 @@ export function ClientShell({ children }: PropsWithChildren) {
     "mod+period",
     () => {
       setSidebarOpen(!sidebarOpen);
+    },
+    {
+      enableOnFormTags: true,
+      preventDefault: true,
+    },
+  );
+
+  // Add hotkey for toggling theme
+  useHotkeys(
+    "mod+shift+l",
+    () => {
+      setTheme(resolvedTheme === "dark" ? "light" : "dark");
     },
     {
       enableOnFormTags: true,

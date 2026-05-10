@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   images: {
+    // Allow lower-quality variants for gallery thumbnails. Default is [75];
+    // 55 is used by BlogImage when rendered as a masonry tile.
+    qualities: [55, 75],
     remotePatterns: [
       {
         protocol: "https",

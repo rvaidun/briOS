@@ -27,69 +27,82 @@ type BlogMediaContextValue = {
 
 const BlogMediaContext = React.createContext<BlogMediaContextValue | null>(null);
 
+type LightboxState = {
+  photos: LightboxPhoto[];
+  activeId: string;
+};
+
 export function BlogMediaProvider({ children }: { children: React.ReactNode }) {
-  const [photoMap, setPhotoMap] = React.useState<Map<string, LightboxPhoto>>(() => new Map());
-  const [activeId, setActiveId] = React.useState<string | null>(null);
+  // Photo registry lives in a ref so 50 BlogImage children mounting and
+  // calling register() doesn't cascade into 50 provider re-renders. We
+  // snapshot it into state at lightbox open time so render uses a
+  // stable list.
+  const photoMapRef = React.useRef<Map<string, LightboxPhoto>>(new Map());
+  const [lightbox, setLightbox] = React.useState<LightboxState | null>(null);
 
   const register = React.useCallback((photo: LightboxPhoto) => {
-    setPhotoMap((prev) => {
-      const existing = prev.get(photo.id);
-      if (existing && existing.src === photo.src) return prev;
-      const next = new Map(prev);
-      next.set(photo.id, photo);
-      return next;
-    });
+    const map = photoMapRef.current;
+    const existing = map.get(photo.id);
+    if (existing && existing.src === photo.src) return;
+    map.set(photo.id, photo);
   }, []);
 
   const unregister = React.useCallback((id: string) => {
-    setPhotoMap((prev) => {
-      if (!prev.has(id)) return prev;
-      const next = new Map(prev);
-      next.delete(id);
-      return next;
-    });
+    photoMapRef.current.delete(id);
   }, []);
 
   const open = React.useCallback((id: string) => {
-    setActiveId(id);
+    // Map preserves insertion order, so this matches DOM order.
+    const photos = Array.from(photoMapRef.current.values());
+    if (photos.length === 0) return;
+    setLightbox({ photos, activeId: id });
   }, []);
 
-  const photos = React.useMemo(() => Array.from(photoMap.values()), [photoMap]);
-  const activeIndex = activeId ? photos.findIndex((p) => p.id === activeId) : -1;
+  const close = React.useCallback(() => setLightbox(null), []);
 
   const goPrev = React.useCallback(() => {
-    if (photos.length === 0 || activeIndex < 0) return;
-    const next = photos[(activeIndex - 1 + photos.length) % photos.length];
-    setActiveId(next.id);
-  }, [photos, activeIndex]);
+    setLightbox((prev) => {
+      if (!prev) return prev;
+      const idx = prev.photos.findIndex((p) => p.id === prev.activeId);
+      if (idx < 0) return prev;
+      const next = prev.photos[(idx - 1 + prev.photos.length) % prev.photos.length];
+      return { ...prev, activeId: next.id };
+    });
+  }, []);
 
   const goNext = React.useCallback(() => {
-    if (photos.length === 0 || activeIndex < 0) return;
-    const next = photos[(activeIndex + 1) % photos.length];
-    setActiveId(next.id);
-  }, [photos, activeIndex]);
+    setLightbox((prev) => {
+      if (!prev) return prev;
+      const idx = prev.photos.findIndex((p) => p.id === prev.activeId);
+      if (idx < 0) return prev;
+      const next = prev.photos[(idx + 1) % prev.photos.length];
+      return { ...prev, activeId: next.id };
+    });
+  }, []);
 
   React.useEffect(() => {
-    if (!activeId) return;
+    if (!lightbox) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "ArrowLeft") goPrev();
       else if (e.key === "ArrowRight") goNext();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeId, goPrev, goNext]);
+  }, [lightbox, goPrev, goNext]);
 
   const value = React.useMemo(() => ({ register, unregister, open }), [register, unregister, open]);
 
+  const photos = lightbox?.photos ?? [];
+  const activeIndex = lightbox ? photos.findIndex((p) => p.id === lightbox.activeId) : -1;
   const activePhoto = activeIndex >= 0 ? photos[activeIndex] : null;
 
   return (
     <BlogMediaContext.Provider value={value}>
       {children}
       <DialogPrimitive.Root
-        open={activeId !== null}
+        open={lightbox !== null}
         onOpenChange={(next) => {
-          if (!next) setActiveId(null);
+          if (!next) close();
         }}
       >
         <AnimatePresence>
@@ -113,7 +126,7 @@ export function BlogMediaProvider({ children }: { children: React.ReactNode }) {
                   Photo {activeIndex + 1} of {photos.length}
                 </DialogPrimitive.Title>
 
-                <div className="absolute inset-0" onClick={() => setActiveId(null)} aria-hidden />
+                <div className="absolute inset-0" onClick={close} aria-hidden />
 
                 <div className="pointer-events-none absolute top-0 right-0 left-0 z-10 flex items-center justify-between p-4 text-sm text-white/70">
                   <span className="pointer-events-auto select-none">
@@ -235,13 +248,31 @@ type BlogImageProps = {
    * single images breaking out of a max-w-3xl prose column.
    */
   sizes?: string;
+  /**
+   * If true, eager-load and prioritize. Use for above-the-fold tiles so the
+   * first paint isn't blank.
+   */
+  priority?: boolean;
 };
 
 const DEFAULT_SIZES = "(min-width: 1024px) 56rem, 100vw";
 const GALLERY_SIZES = "(min-width: 1024px) 28rem, 50vw";
+// Masonry tiles render small enough that q=55 is visually indistinguishable
+// from q=75 but cuts payload roughly in half. Lightbox uses defaults.
+const GALLERY_QUALITY = 55;
 
-export function BlogImage({ id, src, width, height, caption, inGallery, sizes }: BlogImageProps) {
+export function BlogImage({
+  id,
+  src,
+  width,
+  height,
+  caption,
+  inGallery,
+  sizes,
+  priority,
+}: BlogImageProps) {
   const ctx = useBlogMedia();
+  const [loaded, setLoaded] = React.useState(false);
 
   React.useEffect(() => {
     if (!ctx) return;
@@ -268,8 +299,12 @@ export function BlogImage({ id, src, width, height, caption, inGallery, sizes }:
   const buttonBaseClass =
     "group relative block w-full overflow-hidden rounded-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
+  // Skeleton background while gallery tiles decode — without it the page
+  // looks blank for hundreds of ms after the HTML lands. Mirrors PhotoCard.
+  const skeletonClass = inGallery && hasDims && !loaded ? "bg-tertiary animate-pulse" : "";
+
   const buttonClass = inGallery
-    ? buttonBaseClass
+    ? cn(buttonBaseClass, skeletonClass)
     : isPortrait
       ? cn(buttonBaseClass, "max-h-[80vh] w-auto")
       : buttonBaseClass;
@@ -277,6 +312,7 @@ export function BlogImage({ id, src, width, height, caption, inGallery, sizes }:
   const handleOpen = () => ctx?.open(id);
 
   const resolvedSizes = sizes ?? (inGallery ? GALLERY_SIZES : DEFAULT_SIZES);
+  const handleLoad = () => setLoaded(true);
 
   return (
     <figure className={figureClass}>
@@ -289,7 +325,14 @@ export function BlogImage({ id, src, width, height, caption, inGallery, sizes }:
               width={width!}
               height={height!}
               sizes={resolvedSizes}
-              className="h-auto w-full transition duration-300 group-hover:scale-[1.02]"
+              quality={GALLERY_QUALITY}
+              priority={priority}
+              loading={priority ? "eager" : "lazy"}
+              onLoad={handleLoad}
+              className={cn(
+                "h-auto w-full transition duration-300 group-hover:scale-[1.02]",
+                loaded ? "opacity-100" : "opacity-0",
+              )}
             />
           ) : isPortrait ? (
             <Image
@@ -326,20 +369,30 @@ export function BlogImage({ id, src, width, height, caption, inGallery, sizes }:
 
 type BlogGalleryProps = {
   blocks: ProcessedBlock[];
+  /**
+   * If true, eager-load the first row of tiles. Set only for the first gallery
+   * on the page; otherwise tiles below the fold needlessly compete for
+   * bandwidth with the actual above-the-fold content.
+   */
+  eager?: boolean;
 };
 
-export function BlogGallery({ blocks }: BlogGalleryProps) {
+export function BlogGallery({ blocks, eager }: BlogGalleryProps) {
   const count = blocks.length;
   // Masonry: 2 cols on small, up to 3 on lg when there are 3+ photos.
   // `gap-x` controls column gutters; vertical spacing is per-item `mb-3`
   // since CSS columns ignores vertical gap.
-  const columnsClass =
-    count === 2 ? "columns-2 gap-x-3" : "columns-2 gap-x-3 lg:columns-3";
+  const columnsClass = count === 2 ? "columns-2 gap-x-3" : "columns-2 gap-x-3 lg:columns-3";
+
+  // Eager-load enough tiles to cover the first visible row(s) so above-the-fold
+  // content doesn't wait on lazy-load to start decoding. Three cols at lg →
+  // 3 covers one row, 6 covers two. Only applied when `eager` is set.
+  const PRIORITY_COUNT = eager ? 6 : 0;
 
   return (
     <div className="lg:-mx-12 xl:-mx-20">
       <div className={columnsClass}>
-        {blocks.map((block) => (
+        {blocks.map((block, index) => (
           <div key={block.id} className="mb-3 break-inside-avoid">
             <BlogImage
               id={block.id}
@@ -348,6 +401,7 @@ export function BlogGallery({ blocks }: BlogGalleryProps) {
               height={block.height}
               caption={block.caption}
               inGallery
+              priority={index < PRIORITY_COUNT}
             />
           </div>
         ))}

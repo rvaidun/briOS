@@ -240,13 +240,20 @@ function renderOne(
       );
     case "video":
       return (
-        <figure key={block.id} className="flex flex-col gap-2 lg:-mx-12 xl:-mx-20">
+        <figure key={block.id} className="flex flex-col items-center gap-2">
+          {/*
+            Videos don't have known dimensions at render time, so a portrait
+            phone clip would otherwise stretch full-width and run very tall.
+            Cap height and let the video keep its natural aspect ratio via
+            object-contain. No background — the page bg shows through on the
+            sides for portrait clips, matching the rest of the post.
+          */}
           <video
             src={block.content[0].text.content}
             controls
             playsInline
             preload="metadata"
-            className="w-full rounded-lg"
+            className="max-h-[70vh] w-auto max-w-full rounded-lg object-contain"
           />
           {block.caption?.length ? (
             <figcaption className="text-tertiary text-center text-sm italic">
@@ -289,6 +296,7 @@ export function renderBlocks(
   }
 
   const nodes: ReactNode[] = [];
+  let seenGallery = false;
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
     if (block.type === "image") {
@@ -296,7 +304,11 @@ export function renderBlocks(
       while (j < blocks.length && blocks[j].type === "image") j++;
       const run = blocks.slice(i, j);
       if (run.length >= 2) {
-        nodes.push(<BlogGallery key={run[0].id} blocks={run} />);
+        // Only the first gallery on the page gets eager-loaded priority tiles —
+        // later galleries are guaranteed to be below the fold, so loading them
+        // eagerly would just compete for bandwidth with the first row.
+        nodes.push(<BlogGallery key={run[0].id} blocks={run} eager={!seenGallery} />);
+        seenGallery = true;
       } else {
         nodes.push(renderOne(block, false, parentType));
       }

@@ -61,6 +61,10 @@ export type ProcessedBlock = {
   cells?: RichTextItemResponse[][];
   tableRows?: ProcessedBlock[];
   children?: ProcessedBlock[];
+  caption?: RichTextContent[];
+  /** Intrinsic pixel dimensions for image/video blocks (when known). */
+  width?: number;
+  height?: number;
 };
 
 // Generic Notion item metadata

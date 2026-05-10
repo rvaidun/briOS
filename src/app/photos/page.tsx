@@ -17,7 +17,7 @@ export const revalidate = 3300;
 export default async function PhotosPage() {
   let initialPage;
   try {
-    initialPage = await getSharedAlbumPhotos(undefined, 100);
+    initialPage = await getSharedAlbumPhotos();
   } catch (err) {
     console.error("Failed to load initial photos", err);
     initialPage = { items: [], nextCursor: null };

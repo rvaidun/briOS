@@ -101,10 +101,7 @@ export function PlacesFilterBar(props: Props) {
         onClear={props.onClearCategories}
       />
       {anySelected && (
-        <button
-          onClick={props.onClearAll}
-          className="text-tertiary hover:text-primary text-xs"
-        >
+        <button onClick={props.onClearAll} className="text-tertiary hover:text-primary text-xs">
           clear all
         </button>
       )}

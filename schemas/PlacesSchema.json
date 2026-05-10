@@ -173,6 +173,60 @@
             "name": "Chinese restaurant",
             "color": "brown",
             "description": null
+          },
+          {
+            "id": "417e814b-669d-422a-aca6-1218348b351b",
+            "name": "Coffee shop",
+            "color": "purple",
+            "description": null
+          },
+          {
+            "id": "47da6062-9091-49c4-977a-42826481ad45",
+            "name": "Korean restaurant",
+            "color": "gray",
+            "description": null
+          },
+          {
+            "id": "66c2174c-b0eb-4ac1-afcb-5ce3de212b31",
+            "name": "Grocery store",
+            "color": "yellow",
+            "description": null
+          },
+          {
+            "id": "221d0a55-cb15-4ecd-a080-35abe511d8b0",
+            "name": "Ice cream shop",
+            "color": "pink",
+            "description": null
+          },
+          {
+            "id": "48d283ed-76ee-4ed7-b712-5df0e8cbe4fc",
+            "name": "Peruvian restaurant",
+            "color": "purple",
+            "description": null
+          },
+          {
+            "id": "c3a20f40-99ed-4348-bc68-822f9d043754",
+            "name": "Fried chicken takeaway",
+            "color": "pink",
+            "description": null
+          },
+          {
+            "id": "382fec25-d0a4-4e20-8fbd-3442050ec1fa",
+            "name": "Bagel shop",
+            "color": "gray",
+            "description": null
+          },
+          {
+            "id": "0839c6a9-62c1-4d6d-ab16-8552bfa60f3b",
+            "name": "Asian fusion restaurant",
+            "color": "brown",
+            "description": null
+          },
+          {
+            "id": "5475d5e0-5d66-40f7-ad54-19263e785c35",
+            "name": "Hamburger restaurant",
+            "color": "pink",
+            "description": null
           }
         ]
       }

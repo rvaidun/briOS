@@ -106,9 +106,7 @@ function PlacesRow({ item }: PlacesRowProps) {
         {item.category ? <Pill label={item.category} /> : null}
       </div>
       <div className="hidden min-w-[240px] flex-1 md:block">
-        {item.note && (
-          <NoteToggle note={item.note} expanded={noteExpanded} onToggle={toggleNote} />
-        )}
+        {item.note && <NoteToggle note={item.note} expanded={noteExpanded} onToggle={toggleNote} />}
       </div>
     </div>
   );

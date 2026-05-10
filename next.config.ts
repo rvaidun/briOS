@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "s3.us-west-2.amazonaws.com",
       },
+      // R2 public domain — mirrored blog media and photos.
+      {
+        protocol: "https",
+        hostname: "media.rahulvaidun.com",
+      },
       // Google Photos CDN
       {
         protocol: "https",

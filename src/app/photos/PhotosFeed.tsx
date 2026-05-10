@@ -31,6 +31,11 @@ function dayKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
+function yearKey(iso: string): string {
+  if (!iso) return "";
+  return iso.slice(0, 4);
+}
+
 function formatDayLabel(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
@@ -39,7 +44,7 @@ function formatDayLabel(iso: string): string {
 }
 
 interface FeedRow {
-  type: "divider" | "photo";
+  type: "divider" | "photo" | "year";
   key: string;
   label?: string;
   photo?: Photo;
@@ -57,7 +62,17 @@ export function PhotosFeed({ initialData }: PhotosFeedProps) {
   const rows = useMemo<FeedRow[]>(() => {
     const out: FeedRow[] = [];
     let lastDay = "";
+    let lastYear = "";
     items.forEach((photo, index) => {
+      const year = yearKey(photo.creationTime);
+      if (year && year !== lastYear) {
+        lastYear = year;
+        out.push({
+          type: "year",
+          key: `year-${year}-${index}`,
+          label: year,
+        });
+      }
       const day = dayKey(photo.creationTime);
       if (day && day !== lastDay) {
         lastDay = day;
@@ -126,6 +141,16 @@ export function PhotosFeed({ initialData }: PhotosFeedProps) {
       <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
         <div className="grid grid-cols-1 gap-y-8 sm:grid-cols-12 sm:gap-y-24">
           {rows.map((row) => {
+            if (row.type === "year") {
+              return (
+                <div
+                  key={row.key}
+                  className="text-secondary col-span-full mt-8 mb-2 text-left font-sans text-3xl font-semibold tracking-tight first:mt-0 sm:mt-16 sm:text-right sm:text-4xl"
+                >
+                  {row.label}
+                </div>
+              );
+            }
             if (row.type === "divider") {
               return (
                 <div

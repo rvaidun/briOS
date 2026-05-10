@@ -10,9 +10,9 @@ import { createArticleJsonLd, createMetadata, truncateDescription } from "@/lib/
 import { getWritingPostContentBySlug } from "@/lib/notion";
 import { getAllWritingPosts } from "@/lib/writing";
 
-// Revalidate post pages every 30 minutes.
-// This balances fresh Notion image URLs with some caching.
-export const revalidate = 1800;
+// Media is mirrored to R2 with stable URLs, so we no longer need a short
+// revalidate window to combat Notion S3 URL expiry. 24h matches /api/blog.
+export const revalidate = 86400;
 
 // Generate static params for all writing posts at build time
 export async function generateStaticParams() {

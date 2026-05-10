@@ -231,7 +231,7 @@ export function renderBlocks(
         return <hr key={block.id} className="border-primary my-6 border-t" />;
       case "image":
         return (
-          <div key={block.id}>
+          <figure key={block.id} className="flex flex-col gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={block.content[0].text.content}
@@ -239,8 +239,46 @@ export function renderBlocks(
               className="w-full rounded-lg"
               loading="lazy"
             />
+            {block.caption?.length ? (
+              <figcaption className={cn("text-sm", secondaryTextClass)}>
+                {renderRichText(block.caption)}
+              </figcaption>
+            ) : null}
+          </figure>
+        );
+      case "video":
+        return (
+          <figure key={block.id} className="flex flex-col gap-2">
+            <video
+              src={block.content[0].text.content}
+              controls
+              playsInline
+              preload="metadata"
+              className="w-full rounded-lg"
+            />
+            {block.caption?.length ? (
+              <figcaption className={cn("text-sm", secondaryTextClass)}>
+                {renderRichText(block.caption)}
+              </figcaption>
+            ) : null}
+          </figure>
+        );
+      case "file": {
+        const url = block.content[0].text.content;
+        const filename = url.split("/").pop()?.split("?")[0] || "file";
+        return (
+          <div key={block.id}>
+            <a href={url} target="_blank" rel="noopener noreferrer" className="link-body" download>
+              {filename}
+            </a>
+            {block.caption?.length ? (
+              <div className={cn("mt-1 text-sm", secondaryTextClass)}>
+                {renderRichText(block.caption)}
+              </div>
+            ) : null}
           </div>
         );
+      }
       default:
         return null;
     }

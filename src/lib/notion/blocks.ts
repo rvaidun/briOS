@@ -3,6 +3,7 @@ import type {
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 
+import { mirrorNotionMediaToR2 } from "../r2/mirror";
 import { notion } from "./client";
 import type { ProcessedBlock, RichTextContent } from "./types";
 
@@ -25,8 +26,34 @@ function processRichText(richText: RichTextItemResponse[]): RichTextContent[] {
   }));
 }
 
+function urlContentBlock(id: string, type: string, url: string): ProcessedBlock {
+  return {
+    id,
+    type,
+    content: [
+      {
+        type: "text",
+        text: {
+          content: url,
+          link: undefined,
+        },
+        annotations: {
+          bold: false,
+          italic: false,
+          strikethrough: false,
+          underline: false,
+          code: false,
+          color: "default",
+        },
+      },
+    ],
+  };
+}
+
 // Process block data directly from API response without additional API calls
-export function processBlockFromResponse(block: BlockObjectResponse): ProcessedBlock | null {
+export async function processBlockFromResponse(
+  block: BlockObjectResponse,
+): Promise<ProcessedBlock | null> {
   try {
     // Handle different block types using type narrowing
     switch (block.type) {
@@ -116,29 +143,54 @@ export function processBlockFromResponse(block: BlockObjectResponse): ProcessedB
         };
 
       case "image": {
-        const imageUrl =
+        const sourceUrl =
           block.image.type === "external" ? block.image.external.url : block.image.file.url;
-        return {
-          id: block.id,
-          type: "image",
-          content: [
-            {
-              type: "text",
-              text: {
-                content: imageUrl,
-                link: undefined,
-              },
-              annotations: {
-                bold: false,
-                italic: false,
-                strikethrough: false,
-                underline: false,
-                code: false,
-                color: "default",
-              },
-            },
-          ],
-        };
+        const isExternal = block.image.type === "external";
+        const finalUrl = isExternal
+          ? sourceUrl
+          : await mirrorNotionMediaToR2({
+              notionUrl: sourceUrl,
+              blockId: block.id,
+              lastEditedTime: block.last_edited_time,
+              kind: "image",
+            });
+        const out = urlContentBlock(block.id, "image", finalUrl);
+        if (block.image.caption?.length) out.caption = processRichText(block.image.caption);
+        return out;
+      }
+
+      case "video": {
+        const sourceUrl =
+          block.video.type === "external" ? block.video.external.url : block.video.file.url;
+        const isExternal = block.video.type === "external";
+        const finalUrl = isExternal
+          ? sourceUrl
+          : await mirrorNotionMediaToR2({
+              notionUrl: sourceUrl,
+              blockId: block.id,
+              lastEditedTime: block.last_edited_time,
+              kind: "video",
+            });
+        const out = urlContentBlock(block.id, "video", finalUrl);
+        if (block.video.caption?.length) out.caption = processRichText(block.video.caption);
+        return out;
+      }
+
+      case "file": {
+        const sourceUrl =
+          block.file.type === "external" ? block.file.external.url : block.file.file.url;
+        const isExternal = block.file.type === "external";
+        const finalUrl = isExternal
+          ? sourceUrl
+          : await mirrorNotionMediaToR2({
+              notionUrl: sourceUrl,
+              blockId: block.id,
+              lastEditedTime: block.last_edited_time,
+              kind: "file",
+            });
+        const out = urlContentBlock(block.id, "file", finalUrl);
+        if (block.file.caption?.length) out.caption = processRichText(block.file.caption);
+        return out;
       }
 
       case "table":
@@ -199,7 +251,7 @@ export async function getAllBlocks(pageId: string): Promise<ProcessedBlock[]> {
     const blockContents = await Promise.all(
       allBlocks.map(async (block) => {
         const blockObj = block as BlockObjectResponse;
-        const processedBlock = processBlockFromResponse(blockObj);
+        const processedBlock = await processBlockFromResponse(blockObj);
 
         if (processedBlock && blockObj.has_children) {
           if (blockObj.type === "table") {
@@ -209,9 +261,13 @@ export async function getAllBlocks(pageId: string): Promise<ProcessedBlock[]> {
                 page_size: 100,
               });
 
-              const tableRows = childrenResponse.results
-                .map((childBlock) => processBlockFromResponse(childBlock as BlockObjectResponse))
-                .filter((row): row is ProcessedBlock => row !== null && row.type === "table_row");
+              const tableRows = (
+                await Promise.all(
+                  childrenResponse.results.map((childBlock) =>
+                    processBlockFromResponse(childBlock as BlockObjectResponse),
+                  ),
+                )
+              ).filter((row): row is ProcessedBlock => row !== null && row.type === "table_row");
 
               processedBlock.tableRows = tableRows;
             } catch (error) {
@@ -226,9 +282,13 @@ export async function getAllBlocks(pageId: string): Promise<ProcessedBlock[]> {
                 page_size: 100,
               });
 
-              const quoteChildren = childrenResponse.results
-                .map((childBlock) => processBlockFromResponse(childBlock as BlockObjectResponse))
-                .filter((child): child is ProcessedBlock => child !== null);
+              const quoteChildren = (
+                await Promise.all(
+                  childrenResponse.results.map((childBlock) =>
+                    processBlockFromResponse(childBlock as BlockObjectResponse),
+                  ),
+                )
+              ).filter((child): child is ProcessedBlock => child !== null);
 
               processedBlock.children = quoteChildren;
             } catch (error) {

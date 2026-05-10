@@ -8,7 +8,7 @@ import { List, ListItem, ListItemLabel } from "@/components/shared/ListComponent
 import { TopBar } from "@/components/TopBar";
 import { FancySeparator } from "@/components/ui/FancySeparator";
 import { createArticleJsonLd, createMetadata, truncateDescription } from "@/lib/metadata";
-import { getWritingPostContentBySlug } from "@/lib/notion";
+import { getWritingPostContentBySlug, getWritingPostMetadataBySlug } from "@/lib/notion";
 import { getAllWritingPosts } from "@/lib/writing";
 
 // Media is mirrored to R2 with stable URLs, so we no longer need a short
@@ -32,15 +32,12 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
   const params = await props.params;
   const slug = params.slug;
-  const content = await getWritingPostContentBySlug(slug);
+  const metadata = await getWritingPostMetadataBySlug(slug);
 
-  if (!content) {
+  if (!metadata) {
     return {};
   }
 
-  const { metadata } = content;
-
-  // Extract text content from blocks for description
   const description = metadata.excerpt || "A post by Rahul Vaidun";
 
   return createMetadata({

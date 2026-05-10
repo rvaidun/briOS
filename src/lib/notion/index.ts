@@ -48,6 +48,7 @@ export {
   getWritingDatabaseItems,
   getWritingPostContent,
   getWritingPostContentBySlug,
+  getWritingPostMetadataBySlug,
 } from "./queries";
 
 // Mutations

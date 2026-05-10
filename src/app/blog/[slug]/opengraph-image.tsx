@@ -1,4 +1,4 @@
-import { getWritingPostContentBySlug } from "@/lib/notion";
+import { getWritingPostMetadataBySlug } from "@/lib/notion";
 import { generateOGImage } from "@/lib/og-utils";
 
 export const runtime = "nodejs";
@@ -11,17 +11,14 @@ export const contentType = "image/png";
 export default async function Image(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
   const slug = params.slug;
-  const content = await getWritingPostContentBySlug(slug);
+  const metadata = await getWritingPostMetadataBySlug(slug);
 
-  if (!content) {
-    // Fallback to generic title if post not found
+  if (!metadata) {
     return generateOGImage({
       title: "Writing",
       url: "rahulvaidun.com/blog",
     });
   }
-
-  const { metadata } = content;
 
   return generateOGImage({
     title: metadata.title,

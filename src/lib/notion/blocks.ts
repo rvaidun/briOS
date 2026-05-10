@@ -3,7 +3,7 @@ import type {
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 
-import { mirrorNotionMediaToR2 } from "../r2/mirror";
+import { isMirrorError, mirrorNotionMediaToR2 } from "../r2/mirror";
 import { notion } from "./client";
 import type { ProcessedBlock, RichTextContent } from "./types";
 
@@ -222,6 +222,11 @@ export async function processBlockFromResponse(
       }
     }
   } catch (error) {
+    if (isMirrorError(error)) {
+      // Let mirror failures bubble up — falling back here would let an
+      // expiring Notion URL get baked into the ISR cache.
+      throw error;
+    }
     console.error(`Error processing block ${block.id}:`, error);
     return null;
   }
@@ -305,6 +310,7 @@ export async function getAllBlocks(pageId: string): Promise<ProcessedBlock[]> {
 
     return blockContents.filter((block): block is ProcessedBlock => block !== null);
   } catch (error) {
+    if (isMirrorError(error)) throw error;
     console.error(`Error fetching blocks for page ${pageId}:`, error);
     return [];
   }

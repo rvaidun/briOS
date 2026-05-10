@@ -254,7 +254,8 @@ export function BlogImage({ id, src, width, height, caption, inGallery, sizes }:
   const hasDims = Boolean(width && height);
 
   // Layout policy:
-  // - Gallery items: square-ish tiles, fixed aspect ratio so neighbours align.
+  // - Gallery items: natural aspect ratio, laid out in a CSS-columns masonry
+  //   so photos aren't crop-mangled.
   // - Portrait single: cap height, center, narrower than column.
   // - Landscape single (or unknown): break out wider than the prose column on
   //   large screens, full-width within container on small ones.
@@ -268,7 +269,7 @@ export function BlogImage({ id, src, width, height, caption, inGallery, sizes }:
     "group relative block w-full overflow-hidden rounded-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
   const buttonClass = inGallery
-    ? cn(buttonBaseClass, "aspect-[4/3]")
+    ? buttonBaseClass
     : isPortrait
       ? cn(buttonBaseClass, "max-h-[80vh] w-auto")
       : buttonBaseClass;
@@ -285,9 +286,10 @@ export function BlogImage({ id, src, width, height, caption, inGallery, sizes }:
             <Image
               src={src}
               alt=""
-              fill
+              width={width!}
+              height={height!}
               sizes={resolvedSizes}
-              className="object-cover transition duration-300 group-hover:scale-[1.02]"
+              className="h-auto w-full transition duration-300 group-hover:scale-[1.02]"
             />
           ) : isPortrait ? (
             <Image
@@ -328,23 +330,26 @@ type BlogGalleryProps = {
 
 export function BlogGallery({ blocks }: BlogGalleryProps) {
   const count = blocks.length;
-  // 2 photos: 2 cols. 3+: up to 3 cols on lg; 2 cols on small.
-  const gridClass =
-    count === 2 ? "grid grid-cols-2 gap-3" : "grid grid-cols-2 gap-3 lg:grid-cols-3";
+  // Masonry: 2 cols on small, up to 3 on lg when there are 3+ photos.
+  // `gap-x` controls column gutters; vertical spacing is per-item `mb-3`
+  // since CSS columns ignores vertical gap.
+  const columnsClass =
+    count === 2 ? "columns-2 gap-x-3" : "columns-2 gap-x-3 lg:columns-3";
 
   return (
     <div className="lg:-mx-12 xl:-mx-20">
-      <div className={gridClass}>
+      <div className={columnsClass}>
         {blocks.map((block) => (
-          <BlogImage
-            key={block.id}
-            id={block.id}
-            src={block.content[0]?.text.content ?? ""}
-            width={block.width}
-            height={block.height}
-            caption={block.caption}
-            inGallery
-          />
+          <div key={block.id} className="mb-3 break-inside-avoid">
+            <BlogImage
+              id={block.id}
+              src={block.content[0]?.text.content ?? ""}
+              width={block.width}
+              height={block.height}
+              caption={block.caption}
+              inGallery
+            />
+          </div>
         ))}
       </div>
     </div>

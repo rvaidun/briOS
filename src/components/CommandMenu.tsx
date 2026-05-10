@@ -3,9 +3,13 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { Command } from "cmdk";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
+import { Monitor } from "@/components/icons/Monitor";
+import { Moon } from "@/components/icons/Moon";
+import { Sun } from "@/components/icons/Sun";
 import { getAllNavigationItems } from "@/config/navigation";
 
 export function CommandMenu() {
@@ -14,6 +18,7 @@ export function CommandMenu() {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
   const router = useRouter();
+  const { setTheme } = useTheme();
 
   // Memoize navigation items to avoid recomputing on every render
   const navigationItems = React.useMemo(() => getAllNavigationItems(), []);
@@ -61,6 +66,11 @@ export function CommandMenu() {
     setOpen(false);
   };
 
+  const handleSetTheme = (theme: "light" | "dark" | "system") => {
+    setTheme(theme);
+    setOpen(false);
+  };
+
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
@@ -94,6 +104,33 @@ export function CommandMenu() {
                       </Item>
                     );
                   })}
+                </Command.Group>
+
+                <Command.Group heading="Theme">
+                  <Item
+                    value="Switch to light theme"
+                    keywords={["theme", "light", "mode", "appearance"]}
+                    onSelect={() => handleSetTheme("light")}
+                  >
+                    <Sun />
+                    Switch to light theme
+                  </Item>
+                  <Item
+                    value="Switch to dark theme"
+                    keywords={["theme", "dark", "mode", "appearance"]}
+                    onSelect={() => handleSetTheme("dark")}
+                  >
+                    <Moon />
+                    Switch to dark theme
+                  </Item>
+                  <Item
+                    value="Use system theme"
+                    keywords={["theme", "system", "auto", "mode", "appearance"]}
+                    onSelect={() => handleSetTheme("system")}
+                  >
+                    <Monitor />
+                    Use system theme
+                  </Item>
                 </Command.Group>
               </Command.List>
             </Command>

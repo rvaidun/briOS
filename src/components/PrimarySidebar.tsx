@@ -9,6 +9,7 @@ import React from "react";
 
 import { sidebarAtom } from "@/atoms/sidebar";
 import { DoubleChevronLeft } from "@/components/icons/DoubleChevronLeft";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { IconButton } from "@/components/ui/IconButton";
 import { getMainNavigationItems } from "@/config/navigation";
 import { useIsSmallScreen } from "@/hooks/useIsSmallScreen";
@@ -162,31 +163,41 @@ function SidebarHeader() {
   const isSmallScreen = useIsSmallScreen();
 
   return (
-    <div className="mr-2 ml-1 flex h-11 flex-none items-center justify-between select-none">
-      <Link href="/" className="flex items-center gap-2 px-2 py-1">
+    <div className="mr-2 ml-1 flex h-11 flex-none items-center justify-between gap-1 select-none">
+      <Link href="/" className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1">
         <Image
           src="/img/avatar.jpg"
           alt="Notion logo"
           width={40}
           height={40}
-          className="h-5 w-5 rounded-full"
+          className="h-5 w-5 flex-none rounded-full"
           draggable={false}
         />
-        <span className="text-sm font-medium">Rahul Vaidun</span>
+        <span className="truncate text-sm font-medium">Rahul Vaidun</span>
       </Link>
 
-      <IconButton
-        size="sm"
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "text-quaternary opacity-0 transition-opacity duration-200 group-hover/primary-sidebar:opacity-100",
-          {
-            "opacity-100": isOpen && isSmallScreen,
-          },
-        )}
-      >
-        <DoubleChevronLeft size={28} className="group-hover/button:text-primary" />
-      </IconButton>
+      <div className="flex flex-none items-center gap-0.5">
+        <ThemeToggle
+          className={cn(
+            "opacity-0 transition-opacity duration-200 group-hover/primary-sidebar:opacity-100",
+            {
+              "opacity-100": isOpen && isSmallScreen,
+            },
+          )}
+        />
+        <IconButton
+          size="sm"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            "text-quaternary opacity-0 transition-opacity duration-200 group-hover/primary-sidebar:opacity-100",
+            {
+              "opacity-100": isOpen && isSmallScreen,
+            },
+          )}
+        >
+          <DoubleChevronLeft size={28} className="group-hover/button:text-primary" />
+        </IconButton>
+      </div>
     </div>
   );
 }

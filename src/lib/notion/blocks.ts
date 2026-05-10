@@ -146,15 +146,17 @@ export async function processBlockFromResponse(
         const sourceUrl =
           block.image.type === "external" ? block.image.external.url : block.image.file.url;
         const isExternal = block.image.type === "external";
-        const finalUrl = isExternal
-          ? sourceUrl
+        const mirrored = isExternal
+          ? { url: sourceUrl }
           : await mirrorNotionMediaToR2({
               notionUrl: sourceUrl,
               blockId: block.id,
               lastEditedTime: block.last_edited_time,
               kind: "image",
             });
-        const out = urlContentBlock(block.id, "image", finalUrl);
+        const out = urlContentBlock(block.id, "image", mirrored.url);
+        if (mirrored.width) out.width = mirrored.width;
+        if (mirrored.height) out.height = mirrored.height;
         if (block.image.caption?.length) out.caption = processRichText(block.image.caption);
         return out;
       }
@@ -163,15 +165,15 @@ export async function processBlockFromResponse(
         const sourceUrl =
           block.video.type === "external" ? block.video.external.url : block.video.file.url;
         const isExternal = block.video.type === "external";
-        const finalUrl = isExternal
-          ? sourceUrl
+        const mirrored = isExternal
+          ? { url: sourceUrl }
           : await mirrorNotionMediaToR2({
               notionUrl: sourceUrl,
               blockId: block.id,
               lastEditedTime: block.last_edited_time,
               kind: "video",
             });
-        const out = urlContentBlock(block.id, "video", finalUrl);
+        const out = urlContentBlock(block.id, "video", mirrored.url);
         if (block.video.caption?.length) out.caption = processRichText(block.video.caption);
         return out;
       }
@@ -180,15 +182,15 @@ export async function processBlockFromResponse(
         const sourceUrl =
           block.file.type === "external" ? block.file.external.url : block.file.file.url;
         const isExternal = block.file.type === "external";
-        const finalUrl = isExternal
-          ? sourceUrl
+        const mirrored = isExternal
+          ? { url: sourceUrl }
           : await mirrorNotionMediaToR2({
               notionUrl: sourceUrl,
               blockId: block.id,
               lastEditedTime: block.last_edited_time,
               kind: "file",
             });
-        const out = urlContentBlock(block.id, "file", finalUrl);
+        const out = urlContentBlock(block.id, "file", mirrored.url);
         if (block.file.caption?.length) out.caption = processRichText(block.file.caption);
         return out;
       }

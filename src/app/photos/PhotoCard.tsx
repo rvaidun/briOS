@@ -24,7 +24,7 @@ export function PhotoCard({ photo, colStart, colSpan, onOpen }: PhotoCardProps) 
       }}
     >
       <Image
-        src={`${photo.baseUrl}=w1200`}
+        src={photo.baseUrl}
         width={photo.width}
         height={photo.height}
         sizes="(max-width: 640px) 92vw, (max-width: 1024px) 60vw, 50vw"

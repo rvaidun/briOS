@@ -63,7 +63,7 @@ export function Lightbox({ photos, index, onClose, onIndexChange }: LightboxProp
             <div className="relative flex h-full w-full items-center justify-center p-4 sm:p-8">
               <Image
                 key={photo.id}
-                src={`${photo.baseUrl}=w1600`}
+                src={photo.baseUrl}
                 width={photo.width}
                 height={photo.height}
                 sizes="100vw"

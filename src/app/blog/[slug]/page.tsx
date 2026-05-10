@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BlogMediaProvider } from "@/components/blog/BlogMedia";
 import { renderBlocks } from "@/components/renderBlocks";
 import { List, ListItem, ListItemLabel } from "@/components/shared/ListComponents";
 import { TopBar } from "@/components/TopBar";
@@ -122,7 +123,9 @@ export default async function WritingPostPage(props: { params: Promise<{ slug: s
             )}
           </div>
 
-          <div className="flex min-w-0 flex-col gap-4 text-base">{renderBlocks(blocks)}</div>
+          <BlogMediaProvider>
+            <div className="flex min-w-0 flex-col gap-4 text-base">{renderBlocks(blocks)}</div>
+          </BlogMediaProvider>
         </div>
 
         <FancySeparator />

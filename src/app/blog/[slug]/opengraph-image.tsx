@@ -1,4 +1,4 @@
-import { getWritingPostMetadataBySlug } from "@/lib/notion";
+import { getWritingPostMetadataBySlug } from "@/lib/notion/metadata";
 import { generateOGImage } from "@/lib/og-utils";
 
 export const runtime = "nodejs";

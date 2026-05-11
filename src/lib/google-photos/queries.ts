@@ -15,7 +15,9 @@ export async function getSharedAlbumPhotos(): Promise<PhotosPage> {
   if (!R2_PUBLIC_URL) return { items: [], nextCursor: null };
 
   const url = `${R2_PUBLIC_URL}/${PHOTOS_INDEX_KEY}`;
-  const res = await fetch(url, { cache: "no-store" });
+  // Match /photos `revalidate` so the page can render statically. The mirror
+  // script overwrites this key; ISR will pick up new entries on the next tick.
+  const res = await fetch(url, { next: { revalidate: 3300 } });
   if (!res.ok) {
     if (res.status === 404) return { items: [], nextCursor: null };
     throw new Error(`Photos index fetch failed (${res.status})`);

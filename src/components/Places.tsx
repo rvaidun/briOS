@@ -1,9 +1,15 @@
 "use client";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useAtom, useAtomValue } from "jotai";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  placesFocusedIdAtom,
+  placesSelectedCategoriesAtom,
+  placesSelectedCitiesAtom,
+} from "@/atoms/places";
 import { PlaceItem, PlacesPage, usePlacesPaginated } from "@/hooks/usePlaces";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +40,7 @@ interface PlacesProps {
 
 interface PlacesRowProps {
   item: PlaceItem;
+  highlighted?: boolean;
 }
 
 function NoteToggle({
@@ -67,12 +74,15 @@ function NoteToggle({
   );
 }
 
-function PlacesRow({ item }: PlacesRowProps) {
+function PlacesRow({ item, highlighted }: PlacesRowProps) {
   const [noteExpanded, setNoteExpanded] = useState(false);
   const toggleNote = () => setNoteExpanded((v) => !v);
 
   return (
-    <div className="flex h-full gap-3 px-4 py-3 text-sm md:items-start md:gap-4 md:py-2">
+    <div
+      className="flex h-full gap-3 px-4 py-3 text-sm transition-colors duration-300 md:items-start md:gap-4 md:py-2"
+      style={highlighted ? { backgroundColor: "rgba(255, 89, 30, 0.12)" } : undefined}
+    >
       {item.mapUrl && (
         <Link
           target="_blank"
@@ -120,16 +130,21 @@ function LoaderRow({ isReachingEnd }: { isReachingEnd: boolean }) {
   );
 }
 
-function useToggleSet(): [Set<string>, (v: string) => void, () => void] {
-  const [set, setSet] = useState<Set<string>>(() => new Set());
-  const toggle = (v: string) =>
-    setSet((prev) => {
-      const next = new Set(prev);
-      if (next.has(v)) next.delete(v);
-      else next.add(v);
-      return next;
-    });
-  const clear = () => setSet(new Set());
+function useToggleAtom(
+  atom: typeof placesSelectedCitiesAtom,
+): [Set<string>, (v: string) => void, () => void] {
+  const [set, setSet] = useAtom(atom);
+  const toggle = useCallback(
+    (v: string) =>
+      setSet((prev) => {
+        const next = new Set(prev);
+        if (next.has(v)) next.delete(v);
+        else next.add(v);
+        return next;
+      }),
+    [setSet],
+  );
+  const clear = useCallback(() => setSet(new Set()), [setSet]);
   return [set, toggle, clear];
 }
 
@@ -146,8 +161,12 @@ export function Places({ initialData }: PlacesProps = {}) {
   const hasTriggeredLoad = useRef(false);
   const isMobile = useIsMobile();
 
-  const [selectedCities, toggleCity, clearCities] = useToggleSet();
-  const [selectedCategories, toggleCategory, clearCategories] = useToggleSet();
+  const [selectedCities, toggleCity, clearCities] = useToggleAtom(placesSelectedCitiesAtom);
+  const [selectedCategories, toggleCategory, clearCategories] = useToggleAtom(
+    placesSelectedCategoriesAtom,
+  );
+  const focusedId = useAtomValue(placesFocusedIdAtom);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   const { cities, categories } = useMemo(() => {
     const c = new Set<string>();
@@ -207,6 +226,17 @@ export function Places({ initialData }: PlacesProps = {}) {
       }, 0);
     }
   }, [items, places.length, isReachingEnd, isLoading, size, setSize]);
+
+  // React to globe → list focus: scroll to the focused row and flash a highlight.
+  useEffect(() => {
+    if (!focusedId) return;
+    const idx = places.findIndex((p) => p.id === focusedId);
+    if (idx < 0) return;
+    virtualizer.scrollToIndex(idx, { align: "center" });
+    setHighlightedId(focusedId);
+    const t = setTimeout(() => setHighlightedId(null), 1600);
+    return () => clearTimeout(t);
+  }, [focusedId, places, virtualizer]);
 
   const clearAll = () => {
     clearCities();
@@ -298,7 +328,7 @@ export function Places({ initialData }: PlacesProps = {}) {
                     <LoaderRow isReachingEnd={isReachingEnd} />
                   </div>
                 ) : item ? (
-                  <PlacesRow item={item} />
+                  <PlacesRow item={item} highlighted={item.id === highlightedId} />
                 ) : null}
               </div>
             );

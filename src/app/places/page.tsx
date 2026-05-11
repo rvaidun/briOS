@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 import { ArrowUpRight } from "@/components/icons/ArrowUpRight";
-import { Places } from "@/components/Places";
+import { PlacesPane } from "@/components/places/PlacesPane";
+import { PlacesViewToggle } from "@/components/places/PlacesViewToggle";
 import { TopBar } from "@/components/TopBar";
 import { createMetadata } from "@/lib/metadata";
 import { getPlacesDatabaseItems } from "@/lib/notion";
@@ -37,18 +38,24 @@ export default async function PlacesPage() {
 
         {/* Desktop: title + separate right-aligned link */}
         <div className="hidden flex-1 text-sm font-semibold sm:block">Places</div>
-        <a
-          href={MAPS_LIST_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-tertiary hover:text-primary hidden pr-1.5 text-sm sm:inline"
-        >
-          View on Google Maps ↗
-        </a>
+        <div className="hidden sm:flex sm:items-center sm:gap-3">
+          <PlacesViewToggle />
+          <a
+            href={MAPS_LIST_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-tertiary hover:text-primary pr-1.5 text-sm"
+          >
+            View on Google Maps ↗
+          </a>
+        </div>
+        <div className="sm:hidden">
+          <PlacesViewToggle />
+        </div>
       </TopBar>
 
       <div className="flex flex-col pt-11 md:flex-1 md:pt-0">
-        <Places initialData={[initialPage]} />
+        <PlacesPane initialData={[initialPage]} />
       </div>
     </div>
   );

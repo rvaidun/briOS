@@ -275,11 +275,14 @@ def fetch_places(url_or_id: str, with_details: bool = True) -> list[dict]:
 # Matching: by Map URL (stable CID-based).
 #   - Place NOT in Notion → created with every field we have (blanks included,
 #     so the row has a complete shape for the user to fill in later).
-#   - Place already in Notion → ONLY the Notes field is overwritten from the
-#     Google Maps note (so notes written in the Maps app flow through). Every
-#     other column (Name, Category, City, Map URL) is left alone so manual
-#     edits survive. If Google has no note for that place, the row is skipped
-#     entirely — manual Notion notes aren't blanked out.
+#   - Place already in Notion → the Notes field is overwritten from the Google
+#     Maps note (so notes written in the Maps app flow through). Latitude and
+#     Longitude are backfilled when the existing row has them empty — once a
+#     row has coords, they're never touched again (so manual corrections
+#     stick). All other columns (Name, Category, City, Map URL) are left
+#     alone so manual edits survive. If Google has no note and the row
+#     already has coords, it's left untouched — manual Notion notes aren't
+#     blanked out.
 #   - Place removed from the Google list → left alone in Notion (no deletes).
 #
 # Writes are parallelized with 3 concurrent workers — under Notion's 3 req/sec
@@ -341,18 +344,29 @@ def _build_create_props(place: dict) -> dict:
     note = place.get("note") or ""
     map_url = place.get("map_url") or None
     category = place.get("primary_category")
+    lat = place.get("lat")
+    lng = place.get("lng")
 
-    return {
+    props: dict = {
         "Name": {"title": [{"text": {"content": name}}]},
         "City": {"rich_text": [{"text": {"content": city}}] if city else []},
         "Map URL": {"url": map_url},
         "Notes": {"rich_text": [{"text": {"content": note}}] if note else []},
         "Category": {"select": {"name": category}} if category else {"select": None},
     }
+    if isinstance(lat, (int, float)):
+        props["Latitude"] = {"number": lat}
+    if isinstance(lng, (int, float)):
+        props["Longitude"] = {"number": lng}
+    return props
 
 
 def _fetch_existing_rows(database_id: str, token: str) -> dict[str, dict]:
-    """Return {map_url: {page_id, note}} so we can compare existing notes."""
+    """Return {map_url: {page_id, note, lat, lng}} for comparison.
+
+    lat/lng are None when the property is missing or unset, so callers can
+    distinguish "needs backfill" from "already set, don't touch."
+    """
     out: dict[str, dict] = {}
     cursor: str | None = None
     while True:
@@ -367,7 +381,14 @@ def _fetch_existing_rows(database_id: str, token: str) -> dict[str, dict]:
                 continue
             note_rts = props.get("Notes", {}).get("rich_text", []) or []
             current_note = "".join(rt.get("plain_text", "") for rt in note_rts)
-            out[map_url] = {"page_id": page["id"], "note": current_note}
+            lat_prop = props.get("Latitude") or {}
+            lng_prop = props.get("Longitude") or {}
+            out[map_url] = {
+                "page_id": page["id"],
+                "note": current_note,
+                "lat": lat_prop.get("number"),
+                "lng": lng_prop.get("number"),
+            }
         if not data.get("has_more"):
             break
         cursor = data.get("next_cursor")
@@ -381,7 +402,8 @@ def upsert_to_notion(
     print(f"existing rows with Map URL: {len(existing)}", file=sys.stderr)
 
     to_create: list[dict] = []
-    to_update_note: list[tuple[str, dict]] = []  # (page_id, place)
+    # (page_id, place, props_to_patch, change_labels)
+    to_update: list[tuple[str, dict, dict, list[str]]] = []
     unchanged = 0
     skipped_no_url = 0
 
@@ -394,9 +416,27 @@ def upsert_to_notion(
         if existing_row is None:
             to_create.append(place)
             continue
+
+        patch_props: dict = {}
+        labels: list[str] = []
+
         google_note = place.get("note") or ""
         if google_note and google_note != existing_row["note"]:
-            to_update_note.append((existing_row["page_id"], place))
+            patch_props["Notes"] = {"rich_text": [{"text": {"content": google_note}}]}
+            labels.append("note")
+
+        lat = place.get("lat")
+        if isinstance(lat, (int, float)) and existing_row.get("lat") is None:
+            patch_props["Latitude"] = {"number": lat}
+            labels.append("lat")
+
+        lng = place.get("lng")
+        if isinstance(lng, (int, float)) and existing_row.get("lng") is None:
+            patch_props["Longitude"] = {"number": lng}
+            labels.append("lng")
+
+        if patch_props:
+            to_update.append((existing_row["page_id"], place, patch_props, labels))
         else:
             unchanged += 1
 
@@ -412,27 +452,24 @@ def upsert_to_notion(
         )
         return f"  created: {place['name']}"
 
-    def do_update_note(page_id: str, place: dict) -> str:
-        note = place.get("note") or ""
+    def do_update(page_id: str, place: dict, props: dict, labels: list[str]) -> str:
         _notion_request(
             "PATCH",
             f"pages/{page_id}",
             token,
-            {
-                "properties": {
-                    "Notes": {"rich_text": [{"text": {"content": note}}]},
-                }
-            },
+            {"properties": props},
         )
-        return f"  note-updated: {place['name']}"
+        return f"  updated [{','.join(labels)}]: {place['name']}"
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=NOTION_CONCURRENCY) as ex:
         futures = [ex.submit(do_create, p) for p in to_create]
-        futures += [ex.submit(do_update_note, pid, p) for pid, p in to_update_note]
+        futures += [
+            ex.submit(do_update, pid, p, props, labels) for pid, p, props, labels in to_update
+        ]
         for f in concurrent.futures.as_completed(futures):
             print(f.result(), file=sys.stderr)
 
-    return len(to_create), len(to_update_note), unchanged, skipped_no_url
+    return len(to_create), len(to_update), unchanged, skipped_no_url
 
 
 def main() -> int:
@@ -450,10 +487,11 @@ def main() -> int:
     parser.add_argument(
         "--upsert",
         action="store_true",
-        help="Create new places in the Notion database, and sync the Notes "
-        "column on existing rows from the Google Maps note. All other "
-        "columns on existing rows are left untouched. Requires NOTION_TOKEN "
-        "and NOTION_PLACES_DATABASE_ID in env or .env.",
+        help="Create new places in the Notion database, sync the Notes "
+        "column on existing rows from the Google Maps note, and backfill "
+        "Latitude/Longitude on existing rows that have them empty. All "
+        "other columns on existing rows are left untouched. Requires "
+        "NOTION_TOKEN and NOTION_PLACES_DATABASE_ID in env or .env.",
     )
     args = parser.parse_args()
 
@@ -471,9 +509,9 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
-        created, note_updated, unchanged, skipped = upsert_to_notion(places, db_id, token)
+        created, updated, unchanged, skipped = upsert_to_notion(places, db_id, token)
         print(
-            f"sync done: {created} created, {note_updated} notes updated, "
+            f"sync done: {created} created, {updated} updated, "
             f"{unchanged} unchanged, {skipped} skipped (no map url)",
             file=sys.stderr,
         )

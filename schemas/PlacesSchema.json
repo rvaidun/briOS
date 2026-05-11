@@ -16,6 +16,15 @@
       "type": "url",
       "url": {}
     },
+    "Latitude": {
+      "id": "%5Bp%60%3F",
+      "name": "Latitude",
+      "description": null,
+      "type": "number",
+      "number": {
+        "format": "number"
+      }
+    },
     "City": {
       "id": "kdl%60",
       "name": "City",
@@ -237,6 +246,15 @@
       "description": null,
       "type": "rich_text",
       "rich_text": {}
+    },
+    "Longitude": {
+      "id": "xCn%7D",
+      "name": "Longitude",
+      "description": null,
+      "type": "number",
+      "number": {
+        "format": "number"
+      }
     },
     "Name": {
       "id": "title",

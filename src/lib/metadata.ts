@@ -8,7 +8,7 @@ export const SITE_CONFIG = {
   title: "Rahul Vaidun",
   description:
     "Rahul Vaidun is a software engineer living in San Francisco, currently working at DoorDash as a Software Engineer.",
-  url: "https://rahulvaidun.com",
+  url: "https://www.rahulvaidun.com",
   author: {
     name: "Rahul Vaidun",
     github: "https://github.com/rvaidun",

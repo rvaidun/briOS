@@ -1,4 +1,5 @@
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import heicConvert from "heic-convert";
 import sharp from "sharp";
 
 import { getR2Client, isR2Configured, R2_BUCKET, R2_PUBLIC_URL } from "./client";
@@ -32,12 +33,29 @@ function inferExtension(url: string, kind: MirrorKind): string {
     if (dot !== -1 && dot < pathname.length - 1) {
       const ext = pathname.slice(dot + 1).toLowerCase();
       // Sanity guard: extensions shouldn't be longer than 5 chars or contain weird characters.
-      if (/^[a-z0-9]{1,5}$/.test(ext)) return ext;
+      if (/^[a-z0-9]{1,5}$/.test(ext)) {
+        // HEIC/HEIF can't be rendered by browsers or Next/Image's sharp build,
+        // so we transcode to JPEG before upload (see mirrorUrlToR2).
+        if (kind === "image" && (ext === "heic" || ext === "heif")) return "jpg";
+        return ext;
+      }
     }
   } catch {
     // fall through to default
   }
   return DEFAULT_EXTENSION[kind];
+}
+
+/**
+ * Detects HEIC/HEIF by ISO BMFF `ftyp` brand. HEIC files start with a 4-byte
+ * box size, the literal `ftyp`, then a 4-byte major brand. Common brands:
+ * `heic`, `heix`, `heim`, `heis`, `mif1`, `msf1`, `hevc`, `hevx`.
+ */
+function isHeicBuffer(buffer: Buffer): boolean {
+  if (buffer.length < 12) return false;
+  if (buffer.toString("ascii", 4, 8) !== "ftyp") return false;
+  const brand = buffer.toString("ascii", 8, 12);
+  return ["heic", "heix", "heim", "heis", "mif1", "msf1", "hevc", "hevx"].includes(brand);
 }
 
 const inflight = new Map<string, Promise<string>>();
@@ -50,6 +68,11 @@ type MirrorUrlOptions = {
   overwrite?: boolean;
   /** Override the Content-Type stored on the R2 object. */
   contentType?: string;
+  /**
+   * If true and the fetched bytes are HEIC/HEIF, transcode to JPEG before
+   * uploading. Browsers and Next/Image's sharp build can't render HEIC.
+   */
+  convertHeicToJpeg?: boolean;
 };
 
 /**
@@ -79,8 +102,14 @@ export async function mirrorUrlToR2(
 
       if (!options.overwrite) {
         try {
-          await client.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key }));
-          return publicUrl;
+          const head = await client.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+          // Self-heal: a prior partial run could have uploaded raw HEIC bytes
+          // under this key (e.g. dev-server HMR mid-edit). If we're configured
+          // to produce JPEG but the stored object is still HEIC, re-upload.
+          const stuckHeic =
+            options.convertHeicToJpeg &&
+            (head.ContentType === "image/heic" || head.ContentType === "image/heif");
+          if (!stuckHeic) return publicUrl;
         } catch {
           // Object missing — fall through to upload.
         }
@@ -94,9 +123,19 @@ export async function mirrorUrlToR2(
         return sourceUrl;
       }
 
-      const contentType =
+      let contentType =
         options.contentType ?? response.headers.get("content-type") ?? "application/octet-stream";
-      const buffer = Buffer.from(await response.arrayBuffer());
+      let buffer = Buffer.from(await response.arrayBuffer());
+
+      if (options.convertHeicToJpeg && isHeicBuffer(buffer)) {
+        const jpeg = await heicConvert({
+          buffer: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+          format: "JPEG",
+          quality: 0.9,
+        });
+        buffer = Buffer.from(jpeg);
+        contentType = "image/jpeg";
+      }
 
       await client.send(
         new PutObjectCommand({
@@ -126,7 +165,9 @@ export async function mirrorNotionMediaToR2(args: MirrorNotionArgs): Promise<Mir
   const stamp = Date.parse(args.lastEditedTime);
   const safeStamp = Number.isFinite(stamp) ? stamp : 0;
   const key = `notion-blog/${args.blockId}/${safeStamp}.${ext}`;
-  const url = await mirrorUrlToR2(args.notionUrl, key);
+  const url = await mirrorUrlToR2(args.notionUrl, key, {
+    convertHeicToJpeg: args.kind === "image",
+  });
 
   if (args.kind !== "image" || !isR2Configured()) {
     return { url };

@@ -6,6 +6,14 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  // Force-include the Node-runtime variant of @vercel/og for the dynamic OG
+  // route. Next's tracer was shipping the wrapper but skipping index.node.js,
+  // so per-slug requests 500'd with ERR_MODULE_NOT_FOUND.
+  outputFileTracingIncludes: {
+    "/blog/[slug]/opengraph-image": [
+      "./node_modules/next/dist/compiled/@vercel/og/**/*",
+    ],
+  },
   images: {
     // Allow lower-quality variants for gallery thumbnails. Default is [75];
     // 55 is used by BlogImage when rendered as a masonry tile.

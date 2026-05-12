@@ -40,6 +40,17 @@ function inferExtension(url: string, kind: MirrorKind): string {
   return DEFAULT_EXTENSION[kind];
 }
 
+const VIDEO_MIME_BY_EXT: Record<string, string> = {
+  mp4: "video/mp4",
+  m4v: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+};
+
+function inferVideoContentType(ext: string): string {
+  return VIDEO_MIME_BY_EXT[ext.toLowerCase()] ?? "video/mp4";
+}
+
 const inflight = new Map<string, Promise<string>>();
 
 type MirrorUrlOptions = {
@@ -79,8 +90,14 @@ export async function mirrorUrlToR2(
 
       if (!options.overwrite) {
         try {
-          await client.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key }));
-          return publicUrl;
+          const head = await client.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+          // If the caller requested a specific Content-Type and the stored one
+          // doesn't match, re-upload to fix it. This heals videos that were
+          // mirrored before we started forcing a video/* MIME type — iOS Safari
+          // refuses to play anything served as application/octet-stream.
+          if (!options.contentType || head.ContentType === options.contentType) {
+            return publicUrl;
+          }
         } catch {
           // Object missing — fall through to upload.
         }
@@ -126,7 +143,8 @@ export async function mirrorNotionMediaToR2(args: MirrorNotionArgs): Promise<Mir
   const stamp = Date.parse(args.lastEditedTime);
   const safeStamp = Number.isFinite(stamp) ? stamp : 0;
   const key = `notion-blog/${args.blockId}/${safeStamp}.${ext}`;
-  const url = await mirrorUrlToR2(args.notionUrl, key);
+  const contentType = args.kind === "video" ? inferVideoContentType(ext) : undefined;
+  const url = await mirrorUrlToR2(args.notionUrl, key, { contentType });
 
   if (args.kind !== "image" || !isR2Configured()) {
     return { url };

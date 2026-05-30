@@ -138,6 +138,8 @@ export type NotionPlacesItem = {
   mapUrl?: string;
   tags: string[];
   note?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 // Design Details episode item type

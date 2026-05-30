@@ -24,9 +24,11 @@ export type Music = z.infer<typeof MusicSchema>;
 export const PlacesSchema = z.object({
   Tags: z.array(z.string()).optional(),
   "Map URL": z.string().optional(),
+  Latitude: z.number().optional(),
   City: z.string().optional(),
   Category: z.string().optional(),
   Notes: z.string().optional(),
+  Longitude: z.number().optional(),
   Name: z.string().optional(),
 });
 

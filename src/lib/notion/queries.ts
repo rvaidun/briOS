@@ -323,6 +323,8 @@ export async function getPlacesDatabaseItems(
           "Map URL"?: { url: string | null };
           Tags?: { multi_select: { name: string }[] };
           Notes?: { rich_text: { plain_text: string }[] };
+          Latitude?: { number: number | null };
+          Longitude?: { number: number | null };
         };
 
         return {
@@ -333,6 +335,8 @@ export async function getPlacesDatabaseItems(
           mapUrl: properties["Map URL"]?.url || undefined,
           tags: properties.Tags?.multi_select?.map((t) => t.name) || [],
           note: properties.Notes?.rich_text?.map((t) => t.plain_text).join("") || undefined,
+          latitude: properties.Latitude?.number ?? undefined,
+          longitude: properties.Longitude?.number ?? undefined,
         } as NotionPlacesItem;
       })
       .filter((item): item is NotionPlacesItem => item !== null);

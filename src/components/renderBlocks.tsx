@@ -8,6 +8,36 @@ import { cn } from "@/lib/utils";
 // URL regex pattern to match http/https URLs
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
+// Returns an embeddable iframe URL for known video providers, or null for
+// generic file URLs that should play in an HTML5 <video> tag.
+function getVideoEmbedUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const id = parsed.searchParams.get("v");
+      if (id) return `https://www.youtube.com/embed/${id}`;
+      const shortsMatch = parsed.pathname.match(/^\/shorts\/([^/]+)/);
+      if (shortsMatch) return `https://www.youtube.com/embed/${shortsMatch[1]}`;
+      const embedMatch = parsed.pathname.match(/^\/embed\/([^/]+)/);
+      if (embedMatch) return `https://www.youtube.com/embed/${embedMatch[1]}`;
+    }
+    if (host === "youtu.be") {
+      const id = parsed.pathname.replace(/^\//, "").split("/")[0];
+      if (id) return `https://www.youtube.com/embed/${id}`;
+    }
+    if (host === "vimeo.com") {
+      const id = parsed.pathname.replace(/^\//, "").split("/")[0];
+      if (id && /^\d+$/.test(id)) return `https://player.vimeo.com/video/${id}`;
+    }
+    if (host === "player.vimeo.com") return url;
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
 // Function to truncate long URLs in the middle
 function truncateUrl(url: string, maxLength: number = 50): string {
   // Remove http:// or https:// for display
@@ -238,23 +268,37 @@ function renderOne(
           caption={block.caption}
         />
       );
-    case "video":
+    case "video": {
+      const videoUrl = block.content[0].text.content;
+      const embedUrl = getVideoEmbedUrl(videoUrl);
       return (
         <figure key={block.id} className="flex flex-col items-center gap-2">
-          {/*
-            Videos don't have known dimensions at render time, so a portrait
-            phone clip would otherwise stretch full-width and run very tall.
-            Cap height and let the video keep its natural aspect ratio via
-            object-contain. No background — the page bg shows through on the
-            sides for portrait clips, matching the rest of the post.
-          */}
-          <video
-            src={block.content[0].text.content}
-            controls
-            playsInline
-            preload="metadata"
-            className="max-h-[70vh] w-auto max-w-full rounded-lg object-contain"
-          />
+          {embedUrl ? (
+            <div className="aspect-video w-full max-w-full overflow-hidden rounded-lg">
+              <iframe
+                src={embedUrl}
+                title="Embedded video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className="h-full w-full border-0"
+              />
+            </div>
+          ) : (
+            /*
+              Videos don't have known dimensions at render time, so a portrait
+              phone clip would otherwise stretch full-width and run very tall.
+              Cap height and let the video keep its natural aspect ratio via
+              object-contain. No background — the page bg shows through on the
+              sides for portrait clips, matching the rest of the post.
+            */
+            <video
+              src={videoUrl}
+              controls
+              playsInline
+              preload="metadata"
+              className="max-h-[70vh] w-auto max-w-full rounded-lg object-contain"
+            />
+          )}
           {block.caption?.length ? (
             <figcaption className="text-tertiary text-center text-sm italic">
               {renderRichText(block.caption)}
@@ -262,6 +306,7 @@ function renderOne(
           ) : null}
         </figure>
       );
+    }
     case "file": {
       const url = block.content[0].text.content;
       const filename = url.split("/").pop()?.split("?")[0] || "file";

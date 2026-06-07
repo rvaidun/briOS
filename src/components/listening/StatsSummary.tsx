@@ -2,13 +2,7 @@ import type { Summary } from "@/lib/db/stats";
 
 function formatDuration(ms: number): string {
   const totalMin = Math.round(ms / 60_000);
-  if (totalMin < 60) return `${totalMin}m`;
-  const hours = Math.floor(totalMin / 60);
-  const min = totalMin % 60;
-  if (hours < 24) return `${hours}h ${min}m`;
-  const days = Math.floor(hours / 24);
-  const h = hours % 24;
-  return `${days}d ${h}h`;
+  return `${totalMin.toLocaleString()}m`;
 }
 
 export function StatsSummary({ summary }: { summary: Summary }) {

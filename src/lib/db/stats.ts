@@ -84,10 +84,33 @@ export type TopTrack = {
   name: string;
   artist: string;
   imageUrl: string | null;
-  url: string | null;
+  spotifyUrl: string | null;
+  appleUrl: string | null;
   plays: number;
   totalDurationMs: number;
 };
+
+type TopTrackRow = {
+  name: string;
+  artist: string;
+  image_url: string | null;
+  spotify_url: string | null;
+  apple_url: string | null;
+  plays: number;
+  total_ms: string;
+};
+
+function mapTopTrack(row: TopTrackRow): TopTrack {
+  return {
+    name: row.name,
+    artist: row.artist,
+    imageUrl: row.image_url,
+    spotifyUrl: row.spotify_url,
+    appleUrl: row.apple_url,
+    plays: row.plays,
+    totalDurationMs: Number(row.total_ms),
+  };
+}
 
 export async function getTopTracksByArtist(
   artist: string,
@@ -99,7 +122,8 @@ export async function getTopTracksByArtist(
       name,
       artist,
       max(image_url) as image_url,
-      max(url) as url,
+      max(url) filter (where source = 'spotify')     as spotify_url,
+      max(url) filter (where source = 'apple_music') as apple_url,
       count(*)::int as plays,
       coalesce(sum(duration_ms), 0)::bigint as total_ms
     from listens
@@ -108,23 +132,7 @@ export async function getTopTracksByArtist(
     order by plays desc, name asc
     limit ${limit}
   `);
-  return (
-    r.rows as {
-      name: string;
-      artist: string;
-      image_url: string | null;
-      url: string | null;
-      plays: number;
-      total_ms: string;
-    }[]
-  ).map((row) => ({
-    name: row.name,
-    artist: row.artist,
-    imageUrl: row.image_url,
-    url: row.url,
-    plays: row.plays,
-    totalDurationMs: Number(row.total_ms),
-  }));
+  return (r.rows as TopTrackRow[]).map(mapTopTrack);
 }
 
 export async function getTopTracks(period: Period, limit = 10): Promise<TopTrack[]> {
@@ -133,7 +141,8 @@ export async function getTopTracks(period: Period, limit = 10): Promise<TopTrack
       name,
       artist,
       max(image_url) as image_url,
-      max(url) as url,
+      max(url) filter (where source = 'spotify')     as spotify_url,
+      max(url) filter (where source = 'apple_music') as apple_url,
       count(*)::int as plays,
       coalesce(sum(duration_ms), 0)::bigint as total_ms
     from listens
@@ -142,23 +151,7 @@ export async function getTopTracks(period: Period, limit = 10): Promise<TopTrack
     order by plays desc, name asc
     limit ${limit}
   `);
-  return (
-    r.rows as {
-      name: string;
-      artist: string;
-      image_url: string | null;
-      url: string | null;
-      plays: number;
-      total_ms: string;
-    }[]
-  ).map((row) => ({
-    name: row.name,
-    artist: row.artist,
-    imageUrl: row.image_url,
-    url: row.url,
-    plays: row.plays,
-    totalDurationMs: Number(row.total_ms),
-  }));
+  return (r.rows as TopTrackRow[]).map(mapTopTrack);
 }
 
 export type TopAlbum = {

@@ -79,7 +79,8 @@ export default async function ListeningPage({
               primary: t.name,
               secondary: t.artist,
               imageUrl: t.imageUrl,
-              href: t.url,
+              spotifyUrl: t.spotifyUrl,
+              appleUrl: t.appleUrl,
               plays: t.plays,
             }))}
           />

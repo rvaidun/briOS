@@ -1,13 +1,13 @@
 import Image from "next/image";
-import Link from "next/link";
 
-import { cn } from "@/lib/utils";
+import { SourceLinks } from "./SourceLinks";
 
 export type TopListItem = {
   primary: string;
   secondary?: string;
   imageUrl?: string | null;
-  href?: string | null;
+  spotifyUrl?: string | null;
+  appleUrl?: string | null;
   plays: number;
 };
 
@@ -30,48 +30,36 @@ export function TopList({
         <ol className="space-y-2">
           {items.map((item, i) => {
             const pct = Math.max((item.plays / max) * 100, 4);
-            const rowClass = cn(
-              "group relative flex w-full min-w-0 items-center gap-3 overflow-hidden rounded px-2 py-1.5",
-              item.href && "hover:bg-secondary/60",
-            );
-            const body = (
-              <>
-                <span className="text-quaternary w-4 flex-none text-right text-xs tabular-nums">
-                  {i + 1}
-                </span>
-                {showImage ? (
-                  item.imageUrl ? (
-                    <Image
-                      src={item.imageUrl}
-                      width={28}
-                      height={28}
-                      alt=""
-                      className="size-7 flex-none rounded object-cover ring-[0.5px] ring-black/10 dark:ring-white/10"
-                    />
-                  ) : (
-                    <div className="bg-tertiary size-7 flex-none rounded" />
-                  )
-                ) : null}
-                <div className="min-w-0 flex-1">
-                  <div className="text-primary truncate text-sm font-medium">{item.primary}</div>
-                  {item.secondary && (
-                    <div className="text-tertiary truncate text-xs">{item.secondary}</div>
-                  )}
-                </div>
-                <span className="text-tertiary flex-none text-xs tabular-nums">
-                  {item.plays.toLocaleString()}
-                </span>
-              </>
-            );
             return (
               <li key={`${i}-${item.primary}`} className="relative">
-                {item.href ? (
-                  <Link href={item.href} target="_blank" rel="noreferrer" className={rowClass}>
-                    {body}
-                  </Link>
-                ) : (
-                  <div className={rowClass}>{body}</div>
-                )}
+                <div className="group relative flex w-full min-w-0 items-center gap-3 overflow-hidden rounded px-2 py-1.5">
+                  <span className="text-quaternary w-4 flex-none text-right text-xs tabular-nums">
+                    {i + 1}
+                  </span>
+                  {showImage ? (
+                    item.imageUrl ? (
+                      <Image
+                        src={item.imageUrl}
+                        width={28}
+                        height={28}
+                        alt=""
+                        className="size-7 flex-none rounded object-cover ring-[0.5px] ring-black/10 dark:ring-white/10"
+                      />
+                    ) : (
+                      <div className="bg-tertiary size-7 flex-none rounded" />
+                    )
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-primary truncate text-sm font-medium">{item.primary}</div>
+                    {item.secondary && (
+                      <div className="text-tertiary truncate text-xs">{item.secondary}</div>
+                    )}
+                  </div>
+                  <span className="text-tertiary flex-none text-xs tabular-nums">
+                    {item.plays.toLocaleString()}
+                  </span>
+                  <SourceLinks spotifyUrl={item.spotifyUrl} appleUrl={item.appleUrl} />
+                </div>
                 <div
                   aria-hidden
                   className="bg-secondary/40 absolute inset-0 -z-10 rounded"

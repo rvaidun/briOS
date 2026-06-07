@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useState } from "react";
 import useSWR from "swr";
 
@@ -10,6 +9,8 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import type { TopArtist, TopTrack } from "@/lib/db/stats";
 import { fetcher } from "@/lib/fetcher";
 import { cn } from "@/lib/utils";
+
+import { SourceLinks } from "./SourceLinks";
 
 type Props = {
   artists: TopArtist[];
@@ -116,9 +117,9 @@ function ArtistTracks({
 
       {data && data.tracks.length > 0 && (
         <ol className="space-y-0.5 py-1">
-          {data.tracks.map((t, i) => {
-            const body = (
-              <>
+          {data.tracks.map((t, i) => (
+            <li key={`${i}-${t.name}`}>
+              <div className="flex w-full min-w-0 items-center gap-2 rounded px-2 py-1 text-xs">
                 <span className="text-quaternary w-4 flex-none text-right text-xs tabular-nums">
                   {i + 1}
                 </span>
@@ -139,22 +140,10 @@ function ArtistTracks({
                 <span className="text-tertiary flex-none text-xs tabular-nums">
                   {t.plays.toLocaleString()}
                 </span>
-              </>
-            );
-            const rowClass =
-              "hover:bg-secondary/60 flex items-center gap-2 rounded px-2 py-1 text-xs";
-            return (
-              <li key={`${i}-${t.name}`}>
-                {t.url ? (
-                  <Link href={t.url} target="_blank" rel="noreferrer" className={rowClass}>
-                    {body}
-                  </Link>
-                ) : (
-                  <div className={rowClass}>{body}</div>
-                )}
-              </li>
-            );
-          })}
+                <SourceLinks spotifyUrl={t.spotifyUrl} appleUrl={t.appleUrl} size={12} />
+              </div>
+            </li>
+          ))}
         </ol>
       )}
     </div>

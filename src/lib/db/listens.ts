@@ -1,7 +1,6 @@
-import { and, desc, lt, or, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { db } from "./client";
-import { listens } from "./schema";
 
 export type ListenItem = {
   id: string;
@@ -41,33 +40,43 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
   const limit = Math.min(Math.max(opts.limit ?? 20, 1), 100);
   const decoded = opts.cursor ? decodeCursor(opts.cursor) : null;
 
-  const rows = await db
-    .select({
-      id: listens.id,
-      source: listens.source,
-      name: listens.name,
-      artist: listens.artist,
-      album: listens.album,
-      url: listens.url,
-      playedAt: listens.playedAt,
-      image: listens.imageUrl,
-    })
-    .from(listens)
-    .where(
-      decoded
-        ? or(
-            lt(listens.playedAt, decoded.playedAt),
-            and(sql`${listens.playedAt} = ${decoded.playedAt}`, lt(listens.id, decoded.id)),
-          )
-        : undefined,
-    )
-    .orderBy(desc(listens.playedAt), desc(listens.id))
-    .limit(limit + 1);
+  const cursorPredicate = decoded
+    ? sql`(l.played_at < ${decoded.playedAt} OR (l.played_at = ${decoded.playedAt} AND l.id < ${decoded.id}))`
+    : sql`true`;
 
+  const r = await db.execute(sql`
+    SELECT
+      l.id::text                                  AS id,
+      l.source                                    AS source,
+      l.played_at                                 AS played_at,
+      t.name                                      AS name,
+      t.artist                                    AS artist,
+      t.album                                     AS album,
+      t.image_url                                 AS image,
+      (t.sources -> l.source ->> 'url')           AS url
+    FROM listens l
+    JOIN tracks t ON t.id = l.track_id
+    WHERE ${cursorPredicate}
+    ORDER BY l.played_at DESC, l.id DESC
+    LIMIT ${limit + 1}
+  `);
+
+  type Row = {
+    id: string;
+    source: "spotify" | "apple_music";
+    played_at: Date;
+    name: string;
+    artist: string;
+    album: string | null;
+    image: string | null;
+    url: string | null;
+  };
+
+  const rows = r.rows as Row[];
   const hasMore = rows.length > limit;
   const sliced = hasMore ? rows.slice(0, limit) : rows;
   const last = sliced[sliced.length - 1];
-  const nextCursor = hasMore && last ? encodeCursor(last.playedAt, last.id) : null;
+  const nextCursor = hasMore && last ? encodeCursor(new Date(last.played_at), last.id) : null;
 
   return {
     items: sliced.map((r) => ({
@@ -77,7 +86,7 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
       artist: r.artist,
       album: r.album ?? "",
       url: r.url ?? undefined,
-      playedAt: r.playedAt.toISOString(),
+      playedAt: new Date(r.played_at).toISOString(),
       image: r.image ?? undefined,
     })),
     nextCursor,

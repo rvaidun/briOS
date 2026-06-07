@@ -15,6 +15,20 @@
       "when": 1780849005958,
       "tag": "0001_unique_oracle",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780863311038,
+      "tag": "0002_striped_betty_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780864076672,
+      "tag": "0003_natural_hannibal_king",
+      "breakpoints": true
     }
   ]
 }

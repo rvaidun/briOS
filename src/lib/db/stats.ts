@@ -27,17 +27,13 @@ function periodCutoff(period: Period): Date | null {
   return new Date(Date.now() - days * 86_400_000);
 }
 
-// Predicate fragment; combine with `and` for additional filters.
 function periodPredicate(period: Period) {
   const cutoff = periodCutoff(period);
-  return cutoff ? sql`played_at >= ${cutoff}` : sql`true`;
+  return cutoff ? sql`l.played_at >= ${cutoff}` : sql`true`;
 }
 
 export type Summary = {
   plays: number;
-  // Sum of duration_ms only across rows where it's known. Backfilled rows
-  // (pre-Phase-1 Spotify history) lack durations, so this undercounts on
-  // longer periods.
   totalDurationMs: number;
   playsWithDuration: number;
 };
@@ -46,9 +42,10 @@ export async function getSummary(period: Period): Promise<Summary> {
   const r = await db.execute(sql`
     select
       count(*)::int as plays,
-      coalesce(sum(duration_ms), 0)::bigint as total_ms,
-      count(duration_ms)::int as plays_with_duration
-    from listens
+      coalesce(sum(t.duration_ms), 0)::bigint as total_ms,
+      count(t.duration_ms)::int as plays_with_duration
+    from listens l
+    join tracks t on t.id = l.track_id
     where ${periodPredicate(period)}
   `);
   const row = r.rows[0] as { plays: number; total_ms: string; plays_with_duration: number };
@@ -64,13 +61,14 @@ export type TopArtist = { artist: string; plays: number; totalDurationMs: number
 export async function getTopArtists(period: Period, limit = 10): Promise<TopArtist[]> {
   const r = await db.execute(sql`
     select
-      artist,
+      t.artist,
       count(*)::int as plays,
-      coalesce(sum(duration_ms), 0)::bigint as total_ms
-    from listens
+      coalesce(sum(t.duration_ms), 0)::bigint as total_ms
+    from listens l
+    join tracks t on t.id = l.track_id
     where ${periodPredicate(period)}
-    group by artist
-    order by plays desc, artist asc
+    group by t.artist
+    order by plays desc, t.artist asc
     limit ${limit}
   `);
   return (r.rows as { artist: string; plays: number; total_ms: string }[]).map((row) => ({
@@ -119,17 +117,18 @@ export async function getTopTracksByArtist(
 ): Promise<TopTrack[]> {
   const r = await db.execute(sql`
     select
-      name,
-      artist,
-      max(image_url) as image_url,
-      max(url) filter (where source = 'spotify')     as spotify_url,
-      max(url) filter (where source = 'apple_music') as apple_url,
+      t.name,
+      t.artist,
+      t.image_url,
+      (t.sources -> 'spotify'     ->> 'url') as spotify_url,
+      (t.sources -> 'apple_music' ->> 'url') as apple_url,
       count(*)::int as plays,
-      coalesce(sum(duration_ms), 0)::bigint as total_ms
-    from listens
-    where ${periodPredicate(period)} and artist = ${artist}
-    group by name, artist
-    order by plays desc, name asc
+      coalesce(sum(t.duration_ms), 0)::bigint as total_ms
+    from listens l
+    join tracks t on t.id = l.track_id
+    where ${periodPredicate(period)} and t.artist = ${artist}
+    group by t.id, t.name, t.artist, t.image_url, t.sources
+    order by plays desc, t.name asc
     limit ${limit}
   `);
   return (r.rows as TopTrackRow[]).map(mapTopTrack);
@@ -138,17 +137,18 @@ export async function getTopTracksByArtist(
 export async function getTopTracks(period: Period, limit = 10): Promise<TopTrack[]> {
   const r = await db.execute(sql`
     select
-      name,
-      artist,
-      max(image_url) as image_url,
-      max(url) filter (where source = 'spotify')     as spotify_url,
-      max(url) filter (where source = 'apple_music') as apple_url,
+      t.name,
+      t.artist,
+      t.image_url,
+      (t.sources -> 'spotify'     ->> 'url') as spotify_url,
+      (t.sources -> 'apple_music' ->> 'url') as apple_url,
       count(*)::int as plays,
-      coalesce(sum(duration_ms), 0)::bigint as total_ms
-    from listens
+      coalesce(sum(t.duration_ms), 0)::bigint as total_ms
+    from listens l
+    join tracks t on t.id = l.track_id
     where ${periodPredicate(period)}
-    group by name, artist
-    order by plays desc, name asc
+    group by t.id, t.name, t.artist, t.image_url, t.sources
+    order by plays desc, t.name asc
     limit ${limit}
   `);
   return (r.rows as TopTrackRow[]).map(mapTopTrack);
@@ -165,15 +165,16 @@ export type TopAlbum = {
 export async function getTopAlbums(period: Period, limit = 10): Promise<TopAlbum[]> {
   const r = await db.execute(sql`
     select
-      album,
-      max(artist) as artist,
-      max(image_url) as image_url,
+      t.album,
+      max(t.artist) as artist,
+      max(t.image_url) as image_url,
       count(*)::int as plays,
-      coalesce(sum(duration_ms), 0)::bigint as total_ms
-    from listens
-    where ${periodPredicate(period)} and album is not null and album <> ''
-    group by album
-    order by plays desc, album asc
+      coalesce(sum(t.duration_ms), 0)::bigint as total_ms
+    from listens l
+    join tracks t on t.id = l.track_id
+    where ${periodPredicate(period)} and t.album is not null and t.album <> ''
+    group by t.album
+    order by plays desc, t.album asc
     limit ${limit}
   `);
   return (
@@ -197,18 +198,15 @@ export type SourceBreakdown = { source: string; plays: number };
 
 export async function getSourceBreakdown(period: Period): Promise<SourceBreakdown[]> {
   const r = await db.execute(sql`
-    select source, count(*)::int as plays
-    from listens
+    select l.source, count(*)::int as plays
+    from listens l
     where ${periodPredicate(period)}
-    group by source
+    group by l.source
     order by plays desc
   `);
   return r.rows as SourceBreakdown[];
 }
 
-// 7×24 grid keyed by (day_of_week, hour_of_day). day_of_week is 0–6 with 0=Sun.
-// hour_of_day is 0–23 in LOCAL_TZ. Source counts let the renderer blend a
-// green/pink color based on which source dominates that cell.
 export type HeatmapCell = {
   dayOfWeek: number;
   hourOfDay: number;
@@ -220,12 +218,12 @@ export type HeatmapCell = {
 export async function getHeatmap(period: Period): Promise<HeatmapCell[]> {
   const r = await db.execute(sql`
     select
-      extract(dow  from played_at at time zone ${LOCAL_TZ})::int as day_of_week,
-      extract(hour from played_at at time zone ${LOCAL_TZ})::int as hour_of_day,
+      extract(dow  from l.played_at at time zone ${LOCAL_TZ})::int as day_of_week,
+      extract(hour from l.played_at at time zone ${LOCAL_TZ})::int as hour_of_day,
       count(*)::int as plays,
-      count(*) filter (where source = 'spotify')::int     as spotify_plays,
-      count(*) filter (where source = 'apple_music')::int as apple_plays
-    from listens
+      count(*) filter (where l.source = 'spotify')::int     as spotify_plays,
+      count(*) filter (where l.source = 'apple_music')::int as apple_plays
+    from listens l
     where ${periodPredicate(period)}
     group by 1, 2
   `);

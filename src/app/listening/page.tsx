@@ -38,7 +38,7 @@ export default async function ListeningPage({
     <div className="flex min-w-0 flex-1 flex-col">
       <TopBar>
         <div className="flex-1 text-sm font-semibold">Listening</div>
-        <div className="text-quaternary hidden pr-1.5 text-sm sm:visible">Synced hourly</div>
+        <PeriodToggle current={period} />
       </TopBar>
 
       {/*
@@ -63,10 +63,7 @@ export default async function ListeningPage({
           </div>
 
           <div className="flex flex-col gap-3 md:w-[40%] md:flex-1">
-            <div className="flex items-center justify-between">
-              <h2 className="text-primary text-sm font-semibold">Stats</h2>
-              <PeriodToggle current={period} />
-            </div>
+            <h2 className="text-primary text-sm font-semibold">Stats</h2>
             <StatsSummary summary={stats.summary} />
             <SourceSplit breakdown={stats.sourceBreakdown} />
             <Heatmap cells={stats.heatmap} />

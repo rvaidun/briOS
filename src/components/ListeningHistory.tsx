@@ -6,9 +6,19 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { ListeningHistoryPage, useListeningHistoryPaginated } from "@/hooks/useListeningHistory";
-import { cn } from "@/lib/utils";
 
 import { LoadingSpinner } from "./ui";
+
+function findScrollableAncestor(el: HTMLElement | null): HTMLElement | null {
+  if (typeof window === "undefined") return null;
+  let cur = el?.parentElement ?? null;
+  while (cur) {
+    const overflowY = getComputedStyle(cur).overflowY;
+    if (overflowY === "auto" || overflowY === "scroll") return cur;
+    cur = cur.parentElement;
+  }
+  return document.documentElement;
+}
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -66,7 +76,7 @@ function ListeningHistoryRow({ item }: ListeningHistoryRowProps) {
       )}
 
       {/* Song name + Artist (mobile), Song column (desktop) */}
-      <div className="min-w-0 flex-1 md:flex md:min-w-[200px] md:items-center md:gap-3">
+      <div className="min-w-0 flex-1 md:flex md:min-w-[160px] md:items-center md:gap-3">
         {/* Image - hidden on mobile, shown on desktop */}
         {item.image && !imageError ? (
           <Image
@@ -94,13 +104,13 @@ function ListeningHistoryRow({ item }: ListeningHistoryRowProps) {
       </div>
 
       {/* Desktop-only columns */}
-      <div className="text-tertiary hidden min-w-[150px] flex-1 truncate md:block">
+      <div className="text-tertiary hidden min-w-[110px] flex-1 truncate md:block">
         {item.artist}
       </div>
-      <div className="text-tertiary hidden min-w-[150px] flex-1 truncate md:block">
+      <div className="text-tertiary hidden min-w-[110px] flex-1 truncate md:block">
         {item.album}
       </div>
-      <div className="text-tertiary hidden min-w-[120px] whitespace-nowrap md:block">
+      <div className="text-tertiary hidden min-w-[90px] whitespace-nowrap md:block">
         {new Date(item.playedAt).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
@@ -132,12 +142,18 @@ export function ListeningHistory({ initialData }: ListeningHistoryProps = {}) {
   const hasTriggeredLoad = useRef(false);
   const isMobile = useIsMobile();
 
-  // eslint-disable-next-line
   const virtualizer = useVirtualizer({
     count: !isReachingEnd ? music.length + 1 : music.length, // Add 1 for loader row if more data available
-    getScrollElement: () => (isMobile ? document.documentElement : parentRef.current),
+    // Walks up from the list's parent ref to whichever ancestor actually
+    // scrolls. On mobile that's the document; on desktop it's the page's
+    // inner `[data-scrollable]` container (the briOS shell holds the
+    // viewport at h-svh + overflow-hidden, so window scroll won't fire).
+    getScrollElement: () => findScrollableAncestor(parentRef.current),
     estimateSize: () => (isMobile ? 74 : 40), // Mobile: 64px (py-3 + 40px image + text), Desktop: 40px
     overscan: 10, // Render 10 extra items outside viewport for smooth scrolling
+    // React 19 errors when @tanstack/react-virtual's internal `flushSync` fires
+    // during a render path. Use the async rerender path instead.
+    useFlushSync: false,
   });
 
   const items = virtualizer.getVirtualItems();
@@ -188,23 +204,15 @@ export function ListeningHistory({ initialData }: ListeningHistoryProps = {}) {
   }
 
   return (
-    <div
-      ref={parentRef}
-      className={cn("md:flex-1 md:overflow-auto", {
-        "min-h-[calc(100vh+1px)]": isMobile,
-      })}
-      style={{
-        contain: isMobile ? "none" : "strict",
-      }}
-    >
+    <div ref={parentRef}>
       <div className="min-w-fit">
         {/* Table Header - Desktop only */}
         <div className="bg-secondary md:dark:bg-tertiary border-secondary sticky top-0 z-10 hidden border-b md:block">
           <div className="flex gap-4 px-4 py-2 text-sm font-medium">
-            <div className="min-w-[200px] flex-1 text-left text-[13px]">Song</div>
-            <div className="min-w-[150px] flex-1 text-left text-[13px]">Artist</div>
-            <div className="min-w-[150px] flex-1 text-left text-[13px]">Album</div>
-            <div className="min-w-[120px] text-left text-[13px]">Played</div>
+            <div className="min-w-[160px] flex-1 text-left text-[13px]">Song</div>
+            <div className="min-w-[110px] flex-1 text-left text-[13px]">Artist</div>
+            <div className="min-w-[110px] flex-1 text-left text-[13px]">Album</div>
+            <div className="min-w-[90px] text-left text-[13px]">Played</div>
           </div>
         </div>
 

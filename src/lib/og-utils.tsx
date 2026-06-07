@@ -1,5 +1,5 @@
-import { ImageResponse } from "next/og";
 import fs from "fs";
+import { ImageResponse } from "next/og";
 import path from "path";
 
 // OG Image dimensions

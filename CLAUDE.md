@@ -12,6 +12,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun run lint:fix` - Run ESLint with auto-fix
 - `bun run format` - Format code with Prettier
 - `bun run generate-schemas` - Generate TypeScript schemas from Notion databases
+- `bun run db:generate` - Generate Drizzle migration SQL from `src/lib/db/schema.ts` (output: `drizzle/`)
+- `bun run db:migrate` - Apply pending migrations to the database at `DATABASE_URL`
+- `bun run db:studio` - Open Drizzle Studio against `DATABASE_URL`
 
 ### Environment Setup
 
@@ -23,6 +26,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `NOTION_AMA_DATABASE_ID` - AMA questions database
   - `ADMIN_USER_ID` - Admin user restriction
   - `KV_REST_API_URL` / `KV_REST_API_TOKEN` - Upstash Redis (Vercel KV) credentials used by the blog hearts counter (`src/lib/hearts.ts`). Missing values cause hearts to gracefully degrade to 0.
+  - `DATABASE_URL` - Neon Postgres connection string used by the listening history (`src/lib/db/`). Required for `/listening` reads and the listening sync cron.
+  - `LOCAL_TZ` - Timezone for hour-of-day listening analytics (default `America/Los_Angeles`). Used by `src/lib/db/stats.ts`.
 
 ## Architecture Overview
 

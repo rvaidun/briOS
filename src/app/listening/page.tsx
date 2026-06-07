@@ -35,7 +35,7 @@ export default async function ListeningPage({
   ]);
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-w-0 flex-1 flex-col">
       <TopBar>
         <div className="flex-1 text-sm font-semibold">Listening</div>
         <div className="text-quaternary hidden pr-1.5 text-sm sm:visible">Synced hourly</div>

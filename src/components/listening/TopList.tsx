@@ -31,7 +31,7 @@ export function TopList({
           {items.map((item, i) => {
             const pct = Math.max((item.plays / max) * 100, 4);
             const rowClass = cn(
-              "group relative flex items-center gap-3 overflow-hidden rounded px-2 py-1.5",
+              "group relative flex w-full min-w-0 items-center gap-3 overflow-hidden rounded px-2 py-1.5",
               item.href && "hover:bg-secondary/60",
             );
             const body = (

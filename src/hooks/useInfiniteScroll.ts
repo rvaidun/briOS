@@ -14,6 +14,8 @@ export type UseInfiniteScrollOptions<T> = {
   revalidateFirstPage?: boolean;
   revalidateOnFocus?: boolean;
   revalidateOnReconnect?: boolean;
+  revalidateOnMount?: boolean;
+  revalidateIfStale?: boolean;
   dedupingInterval?: number;
   focusThrottleInterval?: number;
   fallbackData?: InfiniteScrollPage<T>[];
@@ -28,6 +30,8 @@ export function useInfiniteScroll<T>(
     revalidateFirstPage = false,
     revalidateOnFocus = false,
     revalidateOnReconnect = false,
+    revalidateOnMount,
+    revalidateIfStale,
     dedupingInterval = 2000,
     focusThrottleInterval = 5000,
     fallbackData,
@@ -40,6 +44,8 @@ export function useInfiniteScroll<T>(
       revalidateFirstPage,
       revalidateOnFocus,
       revalidateOnReconnect,
+      revalidateOnMount,
+      revalidateIfStale,
       dedupingInterval,
       focusThrottleInterval,
       fallbackData,

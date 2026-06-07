@@ -42,6 +42,8 @@ export function useListeningHistoryPaginated(initialData?: ListeningHistoryPage[
     },
     {
       fallbackData: initialData,
+      revalidateOnMount: false,
+      revalidateIfStale: false,
     },
   );
 }

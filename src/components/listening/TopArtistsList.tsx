@@ -14,10 +14,10 @@ import { SourceLinks } from "./SourceLinks";
 
 type Props = {
   artists: TopArtist[];
-  period: string;
+  rangeQuery: string;
 };
 
-export function TopArtistsList({ artists, period }: Props) {
+export function TopArtistsList({ artists, rangeQuery }: Props) {
   const [openArtist, setOpenArtist] = useState<string | null>(null);
   const max = artists[0]?.plays ?? 1;
 
@@ -72,7 +72,7 @@ export function TopArtistsList({ artists, period }: Props) {
                   )}
                 >
                   <div className="min-h-0 overflow-hidden">
-                    <ArtistTracks artist={a.artist} period={period} enabled={isOpen} />
+                    <ArtistTracks artist={a.artist} rangeQuery={rangeQuery} enabled={isOpen} />
                   </div>
                 </div>
               </li>
@@ -86,17 +86,15 @@ export function TopArtistsList({ artists, period }: Props) {
 
 function ArtistTracks({
   artist,
-  period,
+  rangeQuery,
   enabled,
 }: {
   artist: string;
-  period: string;
+  rangeQuery: string;
   enabled: boolean;
 }) {
   const { data, error, isLoading } = useSWR<{ tracks: TopTrack[] }>(
-    enabled
-      ? `/api/listening/top-tracks?artist=${encodeURIComponent(artist)}&period=${encodeURIComponent(period)}`
-      : null,
+    enabled ? `/api/listening/top-tracks?artist=${encodeURIComponent(artist)}&${rangeQuery}` : null,
     fetcher,
     { revalidateIfStale: false, revalidateOnFocus: false, revalidateOnReconnect: false },
   );

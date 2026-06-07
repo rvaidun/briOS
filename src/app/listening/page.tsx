@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { Heatmap } from "@/components/listening/Heatmap";
-import { PeriodToggle } from "@/components/listening/PeriodToggle";
+import { PeriodPicker } from "@/components/listening/PeriodPicker";
 import { SourceSplit } from "@/components/listening/SourceSplit";
 import { StatsSummary } from "@/components/listening/StatsSummary";
 import { TopArtistsList } from "@/components/listening/TopArtistsList";
@@ -9,7 +9,7 @@ import { TopList } from "@/components/listening/TopList";
 import { ListeningHistory } from "@/components/ListeningHistory";
 import { TopBar } from "@/components/TopBar";
 import { getListens } from "@/lib/db/listens";
-import { getListeningStats, isPeriod, type Period } from "@/lib/db/stats";
+import { getListeningStats, resolveRange } from "@/lib/db/stats";
 import { createMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
@@ -24,13 +24,21 @@ export const revalidate = 3600;
 export default async function ListeningPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
 }) {
   const sp = await searchParams;
-  const period: Period = isPeriod(sp.period) ? sp.period : "30d";
+  const { range, period } = resolveRange(sp);
+  const rangeQuery = period
+    ? `period=${period}`
+    : new URLSearchParams(
+        Object.entries({ from: sp.from, to: sp.to }).filter(([, v]) => Boolean(v)) as [
+          string,
+          string,
+        ][],
+      ).toString();
 
   const [stats, initialPage] = await Promise.all([
-    getListeningStats(period),
+    getListeningStats(range),
     getListens({ limit: 20 }),
   ]);
 
@@ -38,7 +46,7 @@ export default async function ListeningPage({
     <div className="flex min-w-0 flex-1 flex-col">
       <TopBar>
         <div className="flex-1 text-sm font-semibold">Listening</div>
-        <PeriodToggle current={period} />
+        <PeriodPicker period={period} from={sp.from ?? null} to={sp.to ?? null} />
       </TopBar>
 
       {/*
@@ -71,7 +79,7 @@ export default async function ListeningPage({
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-          <TopArtistsList artists={stats.topArtists} period={period} />
+          <TopArtistsList artists={stats.topArtists} rangeQuery={rangeQuery} />
           <TopList
             title="Top tracks"
             showImage

@@ -1,35 +1,30 @@
-import { sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 
 import { db } from "./client";
+import type { DateRange } from "./period";
 
-export const PERIODS = ["7d", "30d", "90d", "1y", "all"] as const;
-export type Period = (typeof PERIODS)[number];
-
-export function isPeriod(value: string | undefined): value is Period {
-  return PERIODS.includes(value as Period);
-}
-
-export const PERIOD_LABEL: Record<Period, string> = {
-  "7d": "7 days",
-  "30d": "30 days",
-  "90d": "90 days",
-  "1y": "1 year",
-  all: "All time",
-};
+// Re-export so existing imports from "@/lib/db/stats" keep working.
+export {
+  type DateRange,
+  isPeriod,
+  type Period,
+  PERIOD_LABEL,
+  PERIODS,
+  periodToRange,
+  resolveRange,
+} from "./period";
 
 // Hour-of-day analytics are timezone-sensitive. Defaulting to PT; override via
 // LOCAL_TZ env var if you live elsewhere.
 const LOCAL_TZ = process.env.LOCAL_TZ ?? "America/Los_Angeles";
 
-function periodCutoff(period: Period): Date | null {
-  if (period === "all") return null;
-  const days = { "7d": 7, "30d": 30, "90d": 90, "1y": 365 }[period];
-  return new Date(Date.now() - days * 86_400_000);
-}
-
-function periodPredicate(period: Period) {
-  const cutoff = periodCutoff(period);
-  return cutoff ? sql`l.played_at >= ${cutoff}` : sql`true`;
+function rangePredicate(range: DateRange): SQL {
+  const parts: SQL[] = [];
+  if (range.from) parts.push(sql`l.played_at >= ${range.from}`);
+  if (range.to) parts.push(sql`l.played_at < ${range.to}`);
+  if (parts.length === 0) return sql`true`;
+  if (parts.length === 1) return parts[0]!;
+  return sql`${parts[0]} and ${parts[1]}`;
 }
 
 export type Summary = {
@@ -38,7 +33,7 @@ export type Summary = {
   playsWithDuration: number;
 };
 
-export async function getSummary(period: Period): Promise<Summary> {
+export async function getSummary(range: DateRange): Promise<Summary> {
   const r = await db.execute(sql`
     select
       count(*)::int as plays,
@@ -46,7 +41,7 @@ export async function getSummary(period: Period): Promise<Summary> {
       count(t.duration_ms)::int as plays_with_duration
     from listens l
     join tracks t on t.id = l.track_id
-    where ${periodPredicate(period)}
+    where ${rangePredicate(range)}
   `);
   const row = r.rows[0] as { plays: number; total_ms: string; plays_with_duration: number };
   return {
@@ -58,7 +53,7 @@ export async function getSummary(period: Period): Promise<Summary> {
 
 export type TopArtist = { artist: string; plays: number; totalDurationMs: number };
 
-export async function getTopArtists(period: Period, limit = 10): Promise<TopArtist[]> {
+export async function getTopArtists(range: DateRange, limit = 10): Promise<TopArtist[]> {
   const r = await db.execute(sql`
     select
       t.artist,
@@ -66,7 +61,7 @@ export async function getTopArtists(period: Period, limit = 10): Promise<TopArti
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
     join tracks t on t.id = l.track_id
-    where ${periodPredicate(period)}
+    where ${rangePredicate(range)}
     group by t.artist
     order by plays desc, t.artist asc
     limit ${limit}
@@ -112,7 +107,7 @@ function mapTopTrack(row: TopTrackRow): TopTrack {
 
 export async function getTopTracksByArtist(
   artist: string,
-  period: Period,
+  range: DateRange,
   limit = 10,
 ): Promise<TopTrack[]> {
   const r = await db.execute(sql`
@@ -126,7 +121,7 @@ export async function getTopTracksByArtist(
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
     join tracks t on t.id = l.track_id
-    where ${periodPredicate(period)} and t.artist = ${artist}
+    where ${rangePredicate(range)} and t.artist = ${artist}
     group by t.id, t.name, t.artist, t.image_url, t.sources
     order by plays desc, t.name asc
     limit ${limit}
@@ -134,7 +129,7 @@ export async function getTopTracksByArtist(
   return (r.rows as TopTrackRow[]).map(mapTopTrack);
 }
 
-export async function getTopTracks(period: Period, limit = 10): Promise<TopTrack[]> {
+export async function getTopTracks(range: DateRange, limit = 10): Promise<TopTrack[]> {
   const r = await db.execute(sql`
     select
       t.name,
@@ -146,7 +141,7 @@ export async function getTopTracks(period: Period, limit = 10): Promise<TopTrack
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
     join tracks t on t.id = l.track_id
-    where ${periodPredicate(period)}
+    where ${rangePredicate(range)}
     group by t.id, t.name, t.artist, t.image_url, t.sources
     order by plays desc, t.name asc
     limit ${limit}
@@ -162,7 +157,7 @@ export type TopAlbum = {
   totalDurationMs: number;
 };
 
-export async function getTopAlbums(period: Period, limit = 10): Promise<TopAlbum[]> {
+export async function getTopAlbums(range: DateRange, limit = 10): Promise<TopAlbum[]> {
   const r = await db.execute(sql`
     select
       t.album,
@@ -172,7 +167,7 @@ export async function getTopAlbums(period: Period, limit = 10): Promise<TopAlbum
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
     join tracks t on t.id = l.track_id
-    where ${periodPredicate(period)} and t.album is not null and t.album <> ''
+    where ${rangePredicate(range)} and t.album is not null and t.album <> ''
     group by t.album
     order by plays desc, t.album asc
     limit ${limit}
@@ -196,11 +191,11 @@ export async function getTopAlbums(period: Period, limit = 10): Promise<TopAlbum
 
 export type SourceBreakdown = { source: string; plays: number };
 
-export async function getSourceBreakdown(period: Period): Promise<SourceBreakdown[]> {
+export async function getSourceBreakdown(range: DateRange): Promise<SourceBreakdown[]> {
   const r = await db.execute(sql`
     select l.source, count(*)::int as plays
     from listens l
-    where ${periodPredicate(period)}
+    where ${rangePredicate(range)}
     group by l.source
     order by plays desc
   `);
@@ -215,7 +210,7 @@ export type HeatmapCell = {
   applePlays: number;
 };
 
-export async function getHeatmap(period: Period): Promise<HeatmapCell[]> {
+export async function getHeatmap(range: DateRange): Promise<HeatmapCell[]> {
   const r = await db.execute(sql`
     select
       extract(dow  from l.played_at at time zone ${LOCAL_TZ})::int as day_of_week,
@@ -224,7 +219,7 @@ export async function getHeatmap(period: Period): Promise<HeatmapCell[]> {
       count(*) filter (where l.source = 'spotify')::int     as spotify_plays,
       count(*) filter (where l.source = 'apple_music')::int as apple_plays
     from listens l
-    where ${periodPredicate(period)}
+    where ${rangePredicate(range)}
     group by 1, 2
   `);
   return (
@@ -245,7 +240,6 @@ export async function getHeatmap(period: Period): Promise<HeatmapCell[]> {
 }
 
 export type ListeningStats = {
-  period: Period;
   summary: Summary;
   topArtists: TopArtist[];
   topTracks: TopTrack[];
@@ -254,14 +248,14 @@ export type ListeningStats = {
   heatmap: HeatmapCell[];
 };
 
-export async function getListeningStats(period: Period): Promise<ListeningStats> {
+export async function getListeningStats(range: DateRange): Promise<ListeningStats> {
   const [summary, topArtists, topTracks, topAlbums, sourceBreakdown, heatmap] = await Promise.all([
-    getSummary(period),
-    getTopArtists(period, 10),
-    getTopTracks(period, 10),
-    getTopAlbums(period, 10),
-    getSourceBreakdown(period),
-    getHeatmap(period),
+    getSummary(range),
+    getTopArtists(range, 10),
+    getTopTracks(range, 10),
+    getTopAlbums(range, 10),
+    getSourceBreakdown(range),
+    getHeatmap(range),
   ]);
-  return { period, summary, topArtists, topTracks, topAlbums, sourceBreakdown, heatmap };
+  return { summary, topArtists, topTracks, topAlbums, sourceBreakdown, heatmap };
 }

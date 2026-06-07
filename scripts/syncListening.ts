@@ -11,9 +11,14 @@
  *                APPLE_MUSICKIT_PRIVATE_KEY_B64, APPLE_MUSIC_USER_TOKEN
  *   Either source can be omitted — its sync block no-ops.
  */
-import { and, desc, eq, gt } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 
 import { fetchAppleMusicRecentlyPlayed } from "../src/lib/apple-music";
+import {
+  buildSourceEntryFromLookup,
+  lookup,
+  mintResolverTokens,
+} from "../src/lib/cross-link";
 import { db } from "../src/lib/db/client";
 import { listens, type NewListen, type SourceKey } from "../src/lib/db/schema";
 import { resolveTrackId } from "../src/lib/db/tracks";
@@ -138,6 +143,79 @@ async function syncAppleMusic(): Promise<{ fetched: number; inserted: number }> 
   return { fetched: recent.length, inserted };
 }
 
+// Resolve cross-links for any tracks played in the trailing window that are
+// still missing one source's URL. Keeps the badge coverage in the UI fresh
+// without needing a separate cron job. Honours `resolved_at` so negative
+// lookups (track not on the other platform) aren't re-attempted within the
+// TTL.
+const SYNC_RESOLVE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const SYNC_RESOLVE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SYNC_RESOLVE_LIMIT = 100;
+
+async function resolveRecentlyPlayed(): Promise<{ found: number; missing: number }> {
+  const recentCutoff = new Date(Date.now() - SYNC_RESOLVE_WINDOW_MS);
+  const ttlCutoff = new Date(Date.now() - SYNC_RESOLVE_TTL_MS);
+
+  // Distinct tracks played in the window where at least one side is unresolved.
+  const r = await db.execute(sql`
+    SELECT DISTINCT t.id::text AS id, t.isrc,
+      (t.sources -> 'spotify'     ->> 'track_id') AS spotify_id,
+      (t.sources -> 'spotify'     ->> 'resolved_at')::timestamptz AS spotify_resolved,
+      (t.sources -> 'apple_music' ->> 'track_id') AS apple_id,
+      (t.sources -> 'apple_music' ->> 'resolved_at')::timestamptz AS apple_resolved
+    FROM tracks t
+    JOIN listens l ON l.track_id = t.id
+    WHERE l.played_at >= ${recentCutoff}
+      AND t.isrc IS NOT NULL
+    LIMIT ${SYNC_RESOLVE_LIMIT}
+  `);
+
+  type Row = {
+    id: string;
+    isrc: string;
+    spotify_id: string | null;
+    spotify_resolved: Date | null;
+    apple_id: string | null;
+    apple_resolved: Date | null;
+  };
+  const rows = r.rows as Row[];
+
+  // Decide which target to look up per row, skipping anything already resolved
+  // within the TTL.
+  const targets: { row: Row; target: SourceKey }[] = [];
+  for (const row of rows) {
+    if (!row.apple_id && (!row.apple_resolved || row.apple_resolved < ttlCutoff)) {
+      targets.push({ row, target: "apple_music" });
+    }
+    if (!row.spotify_id && (!row.spotify_resolved || row.spotify_resolved < ttlCutoff)) {
+      targets.push({ row, target: "spotify" });
+    }
+  }
+  if (targets.length === 0) return { found: 0, missing: 0 };
+
+  const tokens = await mintResolverTokens();
+  let found = 0;
+  let missing = 0;
+  for (const { row, target } of targets) {
+    try {
+      const result = await lookup(target, row.isrc, tokens);
+      const entry = buildSourceEntryFromLookup(result);
+      const json = JSON.stringify({ [target]: entry });
+      await db.execute(sql`
+        UPDATE tracks
+        SET sources = sources || ${json}::jsonb,
+            updated_at = now()
+        WHERE id = ${row.id}::uuid
+      `);
+      if (result.found) found++;
+      else missing++;
+    } catch (err) {
+      console.error(`cross-link ${target} ${row.isrc} failed:`, (err as Error).message);
+    }
+  }
+  return { found, missing };
+}
+
 async function main() {
   const start = Date.now();
   let total = 0;
@@ -156,6 +234,13 @@ async function main() {
     total += r.inserted;
   } catch (err) {
     console.error("apple_music sync failed:", err);
+  }
+
+  try {
+    const r = await resolveRecentlyPlayed();
+    console.log(`cross-link: ${r.found} found, ${r.missing} not on platform`);
+  } catch (err) {
+    console.error("cross-link resolve failed:", err);
   }
 
   console.log(`done in ${Date.now() - start}ms, ${total} new listens`);

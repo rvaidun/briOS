@@ -8,7 +8,8 @@ export type ListenItem = {
   name: string;
   artist: string;
   album: string;
-  url?: string;
+  spotifyUrl?: string;
+  appleUrl?: string;
   playedAt: string;
   image?: string;
 };
@@ -46,14 +47,15 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
 
   const r = await db.execute(sql`
     SELECT
-      l.id::text                                  AS id,
-      l.source                                    AS source,
-      l.played_at                                 AS played_at,
-      t.name                                      AS name,
-      t.artist                                    AS artist,
-      t.album                                     AS album,
-      t.image_url                                 AS image,
-      (t.sources -> l.source ->> 'url')           AS url
+      l.id::text                                       AS id,
+      l.source                                         AS source,
+      l.played_at                                      AS played_at,
+      t.name                                           AS name,
+      t.artist                                         AS artist,
+      t.album                                          AS album,
+      t.image_url                                      AS image,
+      (t.sources -> 'spotify'     ->> 'url')           AS spotify_url,
+      (t.sources -> 'apple_music' ->> 'url')           AS apple_url
     FROM listens l
     JOIN tracks t ON t.id = l.track_id
     WHERE ${cursorPredicate}
@@ -69,7 +71,8 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
     artist: string;
     album: string | null;
     image: string | null;
-    url: string | null;
+    spotify_url: string | null;
+    apple_url: string | null;
   };
 
   const rows = r.rows as Row[];
@@ -85,7 +88,8 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
       name: r.name,
       artist: r.artist,
       album: r.album ?? "",
-      url: r.url ?? undefined,
+      spotifyUrl: r.spotify_url ?? undefined,
+      appleUrl: r.apple_url ?? undefined,
       playedAt: new Date(r.played_at).toISOString(),
       image: r.image ?? undefined,
     })),

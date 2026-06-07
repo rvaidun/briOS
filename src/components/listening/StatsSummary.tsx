@@ -29,9 +29,11 @@ export function StatsSummary({ summary }: { summary: Summary }) {
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="border-secondary rounded-md border bg-white p-4 dark:bg-white/5">
+    <div className="border-secondary min-w-0 rounded-md border bg-white p-4 dark:bg-white/5">
       <div className="text-tertiary text-xs font-medium tracking-wide uppercase">{label}</div>
-      <div className="text-primary mt-1 text-2xl font-semibold tabular-nums">{value}</div>
+      <div className="text-primary mt-1 truncate text-xl font-semibold tabular-nums md:text-2xl">
+        {value}
+      </div>
       {hint && <div className="text-quaternary mt-1 text-xs">{hint}</div>}
     </div>
   );

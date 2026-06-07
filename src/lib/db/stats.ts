@@ -89,6 +89,44 @@ export type TopTrack = {
   totalDurationMs: number;
 };
 
+export async function getTopTracksByArtist(
+  artist: string,
+  period: Period,
+  limit = 10,
+): Promise<TopTrack[]> {
+  const r = await db.execute(sql`
+    select
+      name,
+      artist,
+      max(image_url) as image_url,
+      max(url) as url,
+      count(*)::int as plays,
+      coalesce(sum(duration_ms), 0)::bigint as total_ms
+    from listens
+    where ${periodPredicate(period)} and artist = ${artist}
+    group by name, artist
+    order by plays desc, name asc
+    limit ${limit}
+  `);
+  return (
+    r.rows as {
+      name: string;
+      artist: string;
+      image_url: string | null;
+      url: string | null;
+      plays: number;
+      total_ms: string;
+    }[]
+  ).map((row) => ({
+    name: row.name,
+    artist: row.artist,
+    imageUrl: row.image_url,
+    url: row.url,
+    plays: row.plays,
+    totalDurationMs: Number(row.total_ms),
+  }));
+}
+
 export async function getTopTracks(period: Period, limit = 10): Promise<TopTrack[]> {
   const r = await db.execute(sql`
     select

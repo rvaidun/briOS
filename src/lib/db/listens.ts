@@ -5,6 +5,7 @@ import { listens } from "./schema";
 
 export type ListenItem = {
   id: string;
+  source: "spotify" | "apple_music";
   name: string;
   artist: string;
   album: string;
@@ -43,6 +44,7 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
   const rows = await db
     .select({
       id: listens.id,
+      source: listens.source,
       name: listens.name,
       artist: listens.artist,
       album: listens.album,
@@ -70,6 +72,7 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
   return {
     items: sliced.map((r) => ({
       id: r.id,
+      source: r.source,
       name: r.name,
       artist: r.artist,
       album: r.album ?? "",

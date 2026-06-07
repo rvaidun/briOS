@@ -4,6 +4,7 @@ import { Heatmap } from "@/components/listening/Heatmap";
 import { PeriodToggle } from "@/components/listening/PeriodToggle";
 import { SourceSplit } from "@/components/listening/SourceSplit";
 import { StatsSummary } from "@/components/listening/StatsSummary";
+import { TopArtistsList } from "@/components/listening/TopArtistsList";
 import { TopList } from "@/components/listening/TopList";
 import { ListeningHistory } from "@/components/ListeningHistory";
 import { TopBar } from "@/components/TopBar";
@@ -48,14 +49,14 @@ export default async function ListeningPage({
       */}
       <div
         data-scrollable
-        className="flex flex-1 flex-col gap-4 px-4 pt-14 pb-6 md:gap-6 md:overflow-y-auto md:px-6 md:pt-6"
+        className="flex flex-1 flex-col gap-4 overflow-x-hidden px-4 pt-14 pb-[calc(env(safe-area-inset-bottom)+6rem)] md:gap-6 md:overflow-x-visible md:overflow-y-auto md:px-6 md:pt-6 md:pb-6"
       >
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
           <div className="flex flex-col gap-2 md:w-[60%] md:flex-1">
             <h2 className="text-primary text-sm font-semibold">Recently played</h2>
             <div
               data-scrollable
-              className="border-secondary max-h-[70vh] overflow-y-auto rounded-md border bg-white md:max-h-[520px] dark:bg-white/5"
+              className="border-secondary max-h-[320px] overflow-y-auto rounded-md border bg-white [mask-image:linear-gradient(to_bottom,black_calc(100%-2rem),transparent)] md:max-h-[520px] md:[mask-image:none] dark:bg-white/5"
             >
               <ListeningHistory initialData={[initialPage]} />
             </div>
@@ -73,13 +74,7 @@ export default async function ListeningPage({
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-          <TopList
-            title="Top artists"
-            items={stats.topArtists.map((a) => ({
-              primary: a.artist,
-              plays: a.plays,
-            }))}
-          />
+          <TopArtistsList artists={stats.topArtists} period={period} />
           <TopList
             title="Top tracks"
             showImage

@@ -57,16 +57,8 @@ async function insertListens(plays: ResolvedPlay[]): Promise<number> {
   if (plays.length === 0) return 0;
   const rows: NewListen[] = plays.map((p) => ({
     source: p.source,
-    sourceTrackId: p.sourceTrackId,
     trackId: p.trackId,
-    isrc: p.isrc,
-    name: p.name,
-    artist: p.artist,
-    album: p.album,
-    imageUrl: p.imageUrl,
-    url: p.url,
     playedAt: p.playedAt,
-    durationMs: p.durationMs,
   }));
   const inserted = await db
     .insert(listens)

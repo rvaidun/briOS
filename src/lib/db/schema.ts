@@ -66,22 +66,16 @@ export const listens = pgTable(
       .primaryKey()
       .default(sql`gen_random_uuid()`),
     source: text("source", { enum: ["spotify", "apple_music"] }).notNull(),
-    sourceTrackId: text("source_track_id").notNull(),
-    trackId: uuid("track_id").references(() => tracks.id, { onDelete: "cascade" }),
-    isrc: text("isrc"),
-    name: text("name").notNull(),
-    artist: text("artist").notNull(),
-    album: text("album"),
-    imageUrl: text("image_url"),
-    url: text("url"),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
     playedAt: timestamp("played_at", { withTimezone: true }).notNull(),
-    durationMs: integer("duration_ms"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
   },
   (t) => [
-    uniqueIndex("listens_source_track_played_uniq").on(t.source, t.sourceTrackId, t.playedAt),
+    uniqueIndex("listens_source_track_played_uniq").on(t.source, t.trackId, t.playedAt),
     index("listens_played_at_idx").on(t.playedAt.desc()),
     index("listens_track_id_idx").on(t.trackId),
   ],

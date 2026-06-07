@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BlogMediaProvider } from "@/components/blog/BlogMedia";
+import { HeartButton } from "@/components/blog/HeartButton";
 import { renderBlocks } from "@/components/renderBlocks";
 import { List, ListItem, ListItemLabel } from "@/components/shared/ListComponents";
 import { TopBar } from "@/components/TopBar";
@@ -99,7 +100,10 @@ export default async function WritingPostPage(props: { params: Promise<{ slug: s
           </Link>
           <div className="text-quaternary text-sm font-medium">/</div>
           <div className="line-clamp-1 text-sm font-medium">{metadata.title}</div>
-          <div className="text-tertiary ml-auto hidden text-sm sm:flex">{date}</div>
+          <div className="ml-auto flex items-center gap-3">
+            <div className="text-tertiary hidden text-sm sm:flex">{date}</div>
+            <HeartButton slug={slug} size="sm" />
+          </div>
         </div>
       </TopBar>
       <div className="min-w-0 flex-1 overflow-y-auto pt-11 md:pt-0">
@@ -123,6 +127,10 @@ export default async function WritingPostPage(props: { params: Promise<{ slug: s
           <BlogMediaProvider>
             <div className="flex min-w-0 flex-col gap-4 text-base">{renderBlocks(blocks)}</div>
           </BlogMediaProvider>
+
+          <div className="flex justify-center pt-8">
+            <HeartButton slug={slug} size="lg" />
+          </div>
         </div>
 
         <FancySeparator />

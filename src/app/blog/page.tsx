@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { HeartCountBadge } from "@/components/blog/HeartCountBadge";
 import {
   List,
   ListItem,
@@ -51,6 +52,9 @@ export default async function WritingPage() {
                   .map((post) => (
                     <ListItem key={post.id} href={`/blog/${post.slug}`}>
                       <ListItemLabel className="line-clamp-none">{post.title}</ListItemLabel>
+                      <span className="ml-auto pl-2">
+                        <HeartCountBadge slug={post.slug as string} />
+                      </span>
                     </ListItem>
                   ))}
               </List>

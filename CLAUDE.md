@@ -22,6 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `NOTION_STACK_DATABASE_ID` - Stack items database
   - `NOTION_AMA_DATABASE_ID` - AMA questions database
   - `ADMIN_USER_ID` - Admin user restriction
+  - `KV_REST_API_URL` / `KV_REST_API_TOKEN` - Upstash Redis (Vercel KV) credentials used by the blog hearts counter (`src/lib/hearts.ts`). Missing values cause hearts to gracefully degrade to 0.
 
 ## Architecture Overview
 

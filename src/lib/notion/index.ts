@@ -13,7 +13,6 @@ export type {
   NotionAmaItemWithContent,
   NotionDesignDetailsEpisodeItem,
   NotionItem,
-  NotionListeningHistoryItem,
   NotionPlacesItem,
   NotionStackItem,
   PageObjectResponse,
@@ -40,8 +39,6 @@ export { getAllBlocks, processBlockFromResponse } from "./blocks";
 export {
   // Generic
   getFullContent,
-  // Listening History
-  getListeningHistoryDatabaseItems,
   // Places
   getPlacesDatabaseItems,
   // Writing

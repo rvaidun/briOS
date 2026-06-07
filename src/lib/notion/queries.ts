@@ -5,7 +5,6 @@ import { notion } from "./client";
 import {
   hasProperties,
   type NotionItem,
-  type NotionListeningHistoryItem,
   type NotionPlacesItem,
   type ProcessedBlock,
 } from "./types";
@@ -226,68 +225,6 @@ export async function getWritingPostMetadataBySlug(slug: string): Promise<Notion
   } catch (error) {
     console.error(`Error fetching writing post metadata for slug ${slug}:`, error);
     return null;
-  }
-}
-
-// ===== Listening History Database =====
-
-export async function getListeningHistoryDatabaseItems(
-  cursor?: string,
-  pageSize: number = 20,
-): Promise<{ items: NotionListeningHistoryItem[]; nextCursor: string | null }> {
-  try {
-    const databaseId = process.env.NOTION_MUSIC_DATABASE_ID || "";
-    const response = await notion.databases.query({
-      database_id: databaseId,
-      page_size: pageSize,
-      ...(cursor ? { start_cursor: cursor } : {}),
-      sorts: [
-        {
-          property: "Played At",
-          direction: "descending",
-        },
-      ],
-    });
-
-    const items = response.results
-      .map((page) => {
-        if (!hasProperties(page)) return null;
-
-        const pageWithIcon = page as PageObjectResponse;
-        const icon =
-          pageWithIcon.icon?.type === "file"
-            ? pageWithIcon.icon.file.url
-            : pageWithIcon.icon?.type === "external"
-              ? pageWithIcon.icon.external.url
-              : undefined;
-
-        const properties = pageWithIcon.properties as {
-          Name?: { title: { plain_text: string }[] };
-          Artist?: { rich_text: { plain_text: string }[] };
-          Album?: { rich_text: { plain_text: string }[] };
-          "Spotify URL"?: { url: string };
-          "Played At"?: { date: { start: string } | null };
-        };
-
-        return {
-          id: pageWithIcon.id,
-          name: properties.Name?.title[0]?.plain_text || "Untitled",
-          artist: properties.Artist?.rich_text[0]?.plain_text || "",
-          album: properties.Album?.rich_text[0]?.plain_text || "",
-          url: properties["Spotify URL"]?.url || undefined,
-          playedAt: properties["Played At"]?.date?.start || pageWithIcon.created_time,
-          image: icon,
-        } as NotionListeningHistoryItem;
-      })
-      .filter((item): item is NotionListeningHistoryItem => item !== null);
-
-    return {
-      items,
-      nextCursor: response.has_more ? (response.next_cursor as string) : null,
-    };
-  } catch (error) {
-    console.error("Error fetching listening history items:", error);
-    return { items: [], nextCursor: null };
   }
 }
 

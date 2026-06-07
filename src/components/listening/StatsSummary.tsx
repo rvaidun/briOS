@@ -1,0 +1,44 @@
+import type { Summary } from "@/lib/db/stats";
+
+function formatDuration(ms: number): string {
+  const totalMin = Math.round(ms / 60_000);
+  if (totalMin < 60) return `${totalMin}m`;
+  const hours = Math.floor(totalMin / 60);
+  const min = totalMin % 60;
+  if (hours < 24) return `${hours}h ${min}m`;
+  const days = Math.floor(hours / 24);
+  const h = hours % 24;
+  return `${days}d ${h}h`;
+}
+
+export function StatsSummary({ summary }: { summary: Summary }) {
+  const hasDurationCoverage =
+    summary.plays > 0 && summary.playsWithDuration / summary.plays >= 0.95;
+  const coveragePct =
+    summary.plays > 0 ? Math.round((summary.playsWithDuration / summary.plays) * 100) : 0;
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <Stat label="Plays" value={summary.plays.toLocaleString()} />
+      <Stat
+        label="Listening time"
+        value={summary.playsWithDuration > 0 ? formatDuration(summary.totalDurationMs) : "—"}
+        hint={
+          summary.playsWithDuration > 0 && !hasDurationCoverage
+            ? `from ${coveragePct}% of plays`
+            : undefined
+        }
+      />
+    </div>
+  );
+}
+
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="border-secondary rounded-md border bg-white p-4 dark:bg-white/5">
+      <div className="text-tertiary text-xs font-medium tracking-wide uppercase">{label}</div>
+      <div className="text-primary mt-1 text-2xl font-semibold tabular-nums">{value}</div>
+      {hint && <div className="text-quaternary mt-1 text-xs">{hint}</div>}
+    </div>
+  );
+}

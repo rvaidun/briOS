@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "i.scdn.co",
       },
+      // Apple Music CDN — round-robins across is1..is5-ssl.mzstatic.com
+      {
+        protocol: "https",
+        hostname: "*.mzstatic.com",
+      },
       // Notion CDN domains for uploaded files
       {
         protocol: "https",

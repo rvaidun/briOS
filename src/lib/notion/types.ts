@@ -118,17 +118,6 @@ export type NotionAmaItemWithContent = NotionAmaItem & {
   blocks: ProcessedBlock[];
 };
 
-// Listening history item type
-export type NotionListeningHistoryItem = {
-  id: string;
-  name: string;
-  artist: string;
-  album: string;
-  url?: string;
-  playedAt: string;
-  image?: string;
-};
-
 // Places item type
 export type NotionPlacesItem = {
   id: string;

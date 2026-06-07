@@ -1,9 +1,23 @@
 import { ReactNode } from "react";
 
 import { BlogGallery, BlogImage } from "@/components/blog/BlogMedia";
+import { HeadingAnchor } from "@/components/blog/HeadingAnchor";
 import { CodeBlock } from "@/components/CodeBlock";
 import type { ProcessedBlock, RichTextContent, RichTextItemResponse } from "@/lib/notion";
 import { cn } from "@/lib/utils";
+
+function slugifyHeading(content: RichTextContent[], fallback: string): string {
+  const text = content
+    .map((t) => t.text.content)
+    .join("")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}\s-]/gu, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return text || fallback;
+}
 
 // URL regex pattern to match http/https URLs
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
@@ -203,21 +217,36 @@ function renderOne(
       );
     case "heading_1":
       return (
-        <h1 key={block.id} className={cn("mt-6 font-sans text-3xl font-bold", primaryTextClass)}>
+        <HeadingAnchor
+          key={block.id}
+          level={1}
+          id={slugifyHeading(block.content, block.id)}
+          className={cn("mt-6 font-sans text-3xl font-bold", primaryTextClass)}
+        >
           {renderRichText(block.content)}
-        </h1>
+        </HeadingAnchor>
       );
     case "heading_2":
       return (
-        <h2 key={block.id} className={cn("mt-6 font-sans text-2xl font-bold", primaryTextClass)}>
+        <HeadingAnchor
+          key={block.id}
+          level={2}
+          id={slugifyHeading(block.content, block.id)}
+          className={cn("mt-6 font-sans text-2xl font-bold", primaryTextClass)}
+        >
           {renderRichText(block.content)}
-        </h2>
+        </HeadingAnchor>
       );
     case "heading_3":
       return (
-        <h3 key={block.id} className={cn("mt-5 font-sans text-xl font-bold", primaryTextClass)}>
+        <HeadingAnchor
+          key={block.id}
+          level={3}
+          id={slugifyHeading(block.content, block.id)}
+          className={cn("mt-5 font-sans text-xl font-bold", primaryTextClass)}
+        >
           {renderRichText(block.content)}
-        </h3>
+        </HeadingAnchor>
       );
     case "bulleted_list_item":
       return (

@@ -11,12 +11,12 @@
  *                APPLE_MUSICKIT_PRIVATE_KEY_B64, APPLE_MUSIC_USER_TOKEN
  *   Either source can be omitted — its sync block no-ops.
  */
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { fetchAppleMusicRecentlyPlayed } from "../src/lib/apple-music";
 import { buildSourceEntryFromLookup, lookup, mintResolverTokens } from "../src/lib/cross-link";
 import { db } from "../src/lib/db/client";
-import { listens, type NewListen, type SourceKey } from "../src/lib/db/schema";
+import { listens, type NewListen, type SourceKey, syncState } from "../src/lib/db/schema";
 import { resolveTrackId } from "../src/lib/db/tracks";
 import { fetchSpotifyRecentlyPlayed } from "../src/lib/spotify";
 
@@ -69,12 +69,52 @@ async function insertListens(plays: ResolvedPlay[]): Promise<number> {
   return inserted.length;
 }
 
-// How far back to look for already-synced Apple Music tracks when deciding
-// what's new this run. Apple's API doesn't include per-play timestamps, so we
-// dedupe by track id within this rolling window. 90 min covers the hourly
-// cron interval with margin for cron drift; songs replayed after this gap are
-// recorded as fresh listens.
-const APPLE_MUSIC_DEDUP_WINDOW_MS = 90 * 60 * 1000;
+// Apple's /v1/me/recent/played/tracks endpoint returns the same recent-history
+// window every call — there's no per-play identifier or timestamp, and the
+// same song id keeps coming back across runs even when it hasn't been
+// replayed. We dedupe by snapshot diff: persist the ordered catalog-id list
+// from the previous run and on the next run treat as new only the prefix of
+// the current response that consists of (a) ids absent from the previous
+// snapshot or (b) ids that moved upward in the list (a replay surfacing).
+// The first id whose previous position is at or below its current position
+// marks the start of the "old" tail and the walk stops there.
+const APPLE_SNAPSHOT_KEY = "apple_music_recent_snapshot";
+const APPLE_RECENT_LIMIT = 30;
+
+function countNewApplePlays(prev: string[], current: string[]): number {
+  if (prev.length === 0) return 0;
+  const prevIndex = new Map(prev.map((id, i) => [id, i]));
+  let k = 0;
+  for (; k < current.length; k++) {
+    const j = prevIndex.get(current[k]);
+    if (j === undefined) continue; // new song
+    if (j > k) continue; // moved up → replay
+    break; // demoted/unchanged → tail of previous snapshot
+  }
+  return k;
+}
+
+async function readAppleSnapshot(): Promise<string[]> {
+  const rows = await db
+    .select({ value: syncState.value })
+    .from(syncState)
+    .where(eq(syncState.key, APPLE_SNAPSHOT_KEY))
+    .limit(1);
+  const raw = rows[0]?.value as { ids?: unknown } | undefined;
+  if (!raw || !Array.isArray(raw.ids)) return [];
+  return raw.ids.filter((x): x is string => typeof x === "string");
+}
+
+async function writeAppleSnapshot(ids: string[]): Promise<void> {
+  const value = { ids };
+  await db
+    .insert(syncState)
+    .values({ key: APPLE_SNAPSHOT_KEY, value, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: syncState.key,
+      set: { value, updatedAt: new Date() },
+    });
+}
 
 async function syncSpotify(): Promise<{ fetched: number; inserted: number }> {
   const recent = await fetchSpotifyRecentlyPlayed(50);
@@ -101,11 +141,31 @@ async function syncSpotify(): Promise<{ fetched: number; inserted: number }> {
 async function syncAppleMusic(): Promise<{ fetched: number; inserted: number }> {
   if (!process.env.APPLE_MUSIC_USER_TOKEN) return { fetched: 0, inserted: 0 };
 
-  const recent = await fetchAppleMusicRecentlyPlayed(30);
+  const recent = await fetchAppleMusicRecentlyPlayed(APPLE_RECENT_LIMIT);
   if (recent.length === 0) return { fetched: 0, inserted: 0 };
 
-  const now = Date.now();
-  const incoming: IncomingPlay[] = recent.map((t, i) => ({
+  const prev = await readAppleSnapshot();
+  const currentIds = recent.map((t) => t.trackId);
+  const newCount = countNewApplePlays(prev, currentIds);
+
+  // Always persist the latest snapshot so the next run can diff against it,
+  // even when nothing new shows up this round.
+  await writeAppleSnapshot(currentIds);
+
+  if (newCount === 0) return { fetched: recent.length, inserted: 0 };
+
+  // Apple doesn't tell us when each track was played, only that it happened
+  // since the previous snapshot. Spread the new plays uniformly across that
+  // window (cron-run interval, default ~1h) and preserve Apple's
+  // most-recent-first ordering. Beats stamping them all at minute-0 of the
+  // cron hour, which is what the old code did.
+  const baseTime = Date.now();
+  const windowMs = 60 * 60 * 1000;
+  const offsets = Array.from({ length: newCount }, () => Math.random() * windowMs).sort(
+    (a, b) => a - b,
+  );
+
+  const fresh: IncomingPlay[] = recent.slice(0, newCount).map((t, i) => ({
     source: "apple_music",
     sourceTrackId: t.trackId,
     isrc: t.isrc ?? null,
@@ -114,28 +174,12 @@ async function syncAppleMusic(): Promise<{ fetched: number; inserted: number }> 
     album: t.album,
     imageUrl: t.image ?? null,
     url: t.url ?? null,
-    // Apple doesn't return play timestamps. Order is most-recent-first, so
-    // decrement by a second per item to preserve ordering inside the run.
-    playedAt: new Date(now - i * 1000),
+    playedAt: new Date(baseTime - offsets[i]),
     durationMs: t.durationMs ?? null,
   }));
 
-  // Resolve every play to a tracks row first, then dedupe by track_id against
-  // the rolling window so we recognise the same recording even if it comes
-  // back with a different Apple track_id (re-issues, region differences).
-  const resolved = await resolvePlays(incoming);
-  const cutoff = new Date(Date.now() - APPLE_MUSIC_DEDUP_WINDOW_MS);
-  const recentDb = await db
-    .select({ trackId: listens.trackId })
-    .from(listens)
-    .where(and(eq(listens.source, "apple_music"), gt(listens.playedAt, cutoff)))
-    .orderBy(desc(listens.playedAt));
-  const recentlySeen = new Set(recentDb.map((r) => r.trackId));
-
-  const fresh = resolved.filter((p) => !recentlySeen.has(p.trackId));
-  if (fresh.length === 0) return { fetched: recent.length, inserted: 0 };
-
-  const inserted = await insertListens(fresh);
+  const resolved = await resolvePlays(fresh);
+  const inserted = await insertListens(resolved);
   return { fetched: recent.length, inserted };
 }
 

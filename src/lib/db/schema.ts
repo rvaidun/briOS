@@ -95,3 +95,16 @@ export const oauthTokens = pgTable("oauth_tokens", {
     .notNull()
     .default(sql`now()`),
 });
+
+// Key/value scratchpad for cron-side state that doesn't fit anywhere else.
+// Currently holds the most recent Apple Music recently-played snapshot so the
+// next run can diff against it (Apple's API has no per-play identifier, so
+// snapshot diff is the only way to detect new plays without re-inserting the
+// same tracks every couple hours).
+export const syncState = pgTable("sync_state", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+});

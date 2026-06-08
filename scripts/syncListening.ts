@@ -14,11 +14,7 @@
 import { and, desc, eq, gt, sql } from "drizzle-orm";
 
 import { fetchAppleMusicRecentlyPlayed } from "../src/lib/apple-music";
-import {
-  buildSourceEntryFromLookup,
-  lookup,
-  mintResolverTokens,
-} from "../src/lib/cross-link";
+import { buildSourceEntryFromLookup, lookup, mintResolverTokens } from "../src/lib/cross-link";
 import { db } from "../src/lib/db/client";
 import { listens, type NewListen, type SourceKey } from "../src/lib/db/schema";
 import { resolveTrackId } from "../src/lib/db/tracks";

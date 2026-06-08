@@ -5,8 +5,8 @@
  * `track_id`/`url`, so we don't re-check every run.
  */
 import { mintAppleDeveloperToken } from "./apple-music";
-import { getValidSpotifyAccessToken } from "./spotify";
 import type { SourceEntry, SourceKey } from "./db/schema";
+import { getValidSpotifyAccessToken } from "./spotify";
 
 const APPLE_STOREFRONT = process.env.APPLE_MUSIC_STOREFRONT ?? "us";
 
@@ -38,10 +38,7 @@ export async function lookupSpotifyByIsrc(
   return { found: true, trackId: hit.id, url: hit.external_urls?.spotify };
 }
 
-export async function lookupAppleByIsrc(
-  isrc: string,
-  devToken: string,
-): Promise<LookupResult> {
+export async function lookupAppleByIsrc(isrc: string, devToken: string): Promise<LookupResult> {
   const url = `https://api.music.apple.com/v1/catalog/${APPLE_STOREFRONT}/songs?filter[isrc]=${encodeURIComponent(isrc)}&limit=1`;
   const resp = await fetch(url, { headers: { Authorization: `Bearer ${devToken}` } });
   if (resp.status === 429) {

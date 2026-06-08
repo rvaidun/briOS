@@ -116,7 +116,9 @@ async function resolveDirection(
       else if (r === "missing") missing++;
       done++;
       if (done % 100 === 0) {
-        console.log(`[${target}] ${done}/${candidates.length} (found=${found}, missing=${missing})`);
+        console.log(
+          `[${target}] ${done}/${candidates.length} (found=${found}, missing=${missing})`,
+        );
       }
     }
   }

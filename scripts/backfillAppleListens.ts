@@ -10,9 +10,9 @@
  *      unique tracks, server-side deduped — each track gets exactly one play
  *      no matter how many times you actually played it).
  *   3. Resolve each track to a `tracks` row and insert one listen per track,
- *      with played_at spread linearly across the last N days (default 30,
- *      override with --days=N). Apple's ordering is preserved (top of list →
- *      most recent timestamp).
+ *      with played_at sampled uniformly inside local waking hours (8am–
+ *      midnight PT) over the last N days (default 2, override with --days=N).
+ *      Apple's ordering is preserved (top of list → most recent timestamp).
  *   4. Seed the sync_state snapshot with the top 30 track ids so the next
  *      cron run's snapshot diff treats them as the baseline (0 new plays) and
  *      doesn't double-insert.
@@ -37,8 +37,14 @@ import { resolveTrackId } from "../src/lib/db/tracks";
 const APPLE_SNAPSHOT_KEY = "apple_music_recent_snapshot";
 const APPLE_BACKFILL_LIMIT = 200;
 const APPLE_PAGE_SIZE = 30;
-const DEFAULT_DAYS = 30;
+const DEFAULT_DAYS = 2;
 const SNAPSHOT_SIZE = 30;
+// Waking-hour window in the local timezone, used to bias backfill timestamps
+// away from the dead-of-night hours nobody actually listens in. Half-open:
+// [WAKING_HOUR_START, WAKING_HOUR_END), 24h clock.
+const WAKING_HOUR_START = 8;
+const WAKING_HOUR_END = 24;
+const LOCAL_TZ = process.env.LOCAL_TZ ?? "America/Los_Angeles";
 
 function parseDays(): number {
   const arg = process.argv.find((a) => a.startsWith("--days="));
@@ -61,20 +67,45 @@ async function paginateRecent(max: number): Promise<AppleMusicRecentlyPlayed[]> 
   return out.slice(0, max);
 }
 
-// Spread N timestamps over [now - days, now], preserving order so position 0
-// (most recent in Apple's response) gets the newest timestamp. Small jitter
-// so the points aren't perfectly evenly spaced.
-function spreadTimestamps(count: number, days: number): Date[] {
+function localHour(t: Date): number {
+  return Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: LOCAL_TZ,
+      hour: "numeric",
+      hour12: false,
+    }).format(t),
+  );
+}
+
+function isWakingHour(t: Date): boolean {
+  const h = localHour(t);
+  return h >= WAKING_HOUR_START && h < WAKING_HOUR_END;
+}
+
+// Sample N timestamps uniformly in (now - days, now], rejecting anything that
+// lands outside local waking hours, then return them newest-first so position
+// 0 of Apple's response (most recently played) is assigned the newest stamp.
+function generateWakingTimestamps(count: number, days: number): Date[] {
   if (count === 0) return [];
-  const now = Date.now();
   const windowMs = days * 24 * 60 * 60 * 1000;
-  const stepMs = windowMs / Math.max(count, 1);
-  const jitterMs = stepMs * 0.4;
-  return Array.from({ length: count }, (_, i) => {
-    const base = now - i * stepMs;
-    const jitter = (Math.random() - 0.5) * 2 * jitterMs;
-    return new Date(base + jitter);
-  });
+  const now = Date.now();
+  const out: Date[] = [];
+  // Safety cap so a misconfigured waking window can't infinite-loop. Acceptance
+  // rate at the default 8am–midnight is ~67%, so 100x count is huge headroom.
+  const maxAttempts = count * 100;
+  let attempts = 0;
+  while (out.length < count && attempts < maxAttempts) {
+    attempts++;
+    const candidate = new Date(now - Math.random() * windowMs);
+    if (isWakingHour(candidate)) out.push(candidate);
+  }
+  if (out.length < count) {
+    throw new Error(
+      `failed to generate ${count} waking-hour timestamps in ${maxAttempts} attempts — waking window may be empty`,
+    );
+  }
+  out.sort((a, b) => b.getTime() - a.getTime());
+  return out;
 }
 
 async function main() {
@@ -107,7 +138,7 @@ async function main() {
   console.log(`deleted ${deleted.length} apple_music listens`);
 
   console.log(`resolving ${recent.length} tracks…`);
-  const playedAts = spreadTimestamps(recent.length, days);
+  const playedAts = generateWakingTimestamps(recent.length, days);
   const rows: NewListen[] = [];
   for (let i = 0; i < recent.length; i++) {
     const t = recent[i];

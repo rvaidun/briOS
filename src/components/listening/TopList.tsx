@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 import { SourceLinks } from "./SourceLinks";
 
@@ -8,6 +9,7 @@ export type TopListItem = {
   imageUrl?: string | null;
   spotifyUrl?: string | null;
   appleUrl?: string | null;
+  href?: string;
   plays: number;
 };
 
@@ -31,8 +33,18 @@ export function TopList({
           {items.map((item, i) => {
             const pct = Math.max((item.plays / max) * 100, 4);
             return (
-              <li key={`${i}-${item.primary}`} className="relative">
-                <div className="group relative flex w-full min-w-0 items-center gap-3 overflow-hidden rounded px-2 py-1.5">
+              <li
+                key={`${i}-${item.primary}`}
+                className="group hover:bg-secondary/40 relative rounded"
+              >
+                {item.href && (
+                  <Link
+                    href={item.href}
+                    aria-label={item.primary}
+                    className="absolute inset-0 z-10 rounded"
+                  />
+                )}
+                <div className="relative flex w-full min-w-0 items-center gap-3 overflow-hidden rounded px-2 py-1.5">
                   <span className="text-quaternary w-4 flex-none text-right text-xs tabular-nums">
                     {i + 1}
                   </span>
@@ -58,11 +70,14 @@ export function TopList({
                   <span className="text-tertiary flex-none text-xs tabular-nums">
                     {item.plays.toLocaleString()}
                   </span>
-                  <SourceLinks spotifyUrl={item.spotifyUrl} appleUrl={item.appleUrl} />
+                  {/* z-20 keeps the per-source icon links above the row-wide link overlay. */}
+                  <span className="relative z-20">
+                    <SourceLinks spotifyUrl={item.spotifyUrl} appleUrl={item.appleUrl} />
+                  </span>
                 </div>
                 <div
                   aria-hidden
-                  className="bg-secondary/40 absolute inset-0 -z-10 rounded"
+                  className="bg-secondary/40 pointer-events-none absolute inset-0 -z-10 rounded"
                   style={{ width: `${pct}%` }}
                 />
               </li>

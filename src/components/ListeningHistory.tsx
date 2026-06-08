@@ -2,6 +2,7 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { ListeningHistoryPage, useListeningHistoryPaginated } from "@/hooks/useListeningHistory";
@@ -45,6 +46,7 @@ interface ListeningHistoryProps {
 
 interface ListeningHistoryRowProps {
   item: {
+    trackId: string;
     name: string;
     artist: string;
     album: string;
@@ -60,65 +62,74 @@ function ListeningHistoryRow({ item }: ListeningHistoryRowProps) {
   const [imageError, setImageError] = useState(false);
 
   return (
-    <div className="flex h-full gap-3 px-4 py-3 text-sm md:items-center md:gap-4 md:py-1">
-      {/* Image - shown on mobile, hidden on desktop */}
-      {item.image && !imageError ? (
-        <Image
-          width={40}
-          height={40}
-          src={item.image}
-          alt=""
-          className="size-10 flex-none rounded object-cover ring-[0.5px] ring-black/10 md:hidden dark:ring-white/10"
-          onError={() => setImageError(true)}
-        />
-      ) : (
-        <div className="bg-tertiary size-10 flex-none rounded md:hidden" />
-      )}
-
-      {/* Song name + Artist (mobile), Song column (desktop) */}
-      <div className="min-w-0 flex-1 md:flex md:min-w-[160px] md:items-center md:gap-3">
-        {/* Image - hidden on mobile, shown on desktop */}
+    <div className="relative h-full">
+      <Link
+        href={`/listening/tracks/${item.trackId}`}
+        aria-label={item.name}
+        className="absolute inset-0 z-10"
+      />
+      <div className="relative flex h-full gap-3 px-4 py-3 text-sm md:items-center md:gap-4 md:py-1">
+        {/* Image - shown on mobile, hidden on desktop */}
         {item.image && !imageError ? (
           <Image
-            width={20}
-            height={20}
+            width={40}
+            height={40}
             src={item.image}
             alt=""
-            className="hidden size-5 flex-none rounded object-cover ring-[0.5px] ring-black/5 md:block dark:ring-white/5"
+            className="size-10 flex-none rounded object-cover ring-[0.5px] ring-black/10 md:hidden dark:ring-white/10"
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="bg-tertiary hidden size-5 flex-none rounded md:block" />
+          <div className="bg-tertiary size-10 flex-none rounded md:hidden" />
         )}
-        <div className="min-w-0 flex-1">
-          <span className="text-primary flex items-center gap-1.5 truncate font-medium">
-            <SourceLinks spotifyUrl={item.spotifyUrl} appleUrl={item.appleUrl} />
-            <span className="truncate">{item.name}</span>
-          </span>
-          <div className="text-tertiary truncate text-sm md:hidden">{item.artist}</div>
-          <div className="text-tertiary truncate text-sm md:hidden">
-            {new Date(item.playedAt).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
+
+        {/* Song name + Artist (mobile), Song column (desktop) */}
+        <div className="min-w-0 flex-1 md:flex md:min-w-[160px] md:items-center md:gap-3">
+          {/* Image - hidden on mobile, shown on desktop */}
+          {item.image && !imageError ? (
+            <Image
+              width={20}
+              height={20}
+              src={item.image}
+              alt=""
+              className="hidden size-5 flex-none rounded object-cover ring-[0.5px] ring-black/5 md:block dark:ring-white/5"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="bg-tertiary hidden size-5 flex-none rounded md:block" />
+          )}
+          <div className="min-w-0 flex-1">
+            <span className="text-primary flex items-center gap-1.5 truncate font-medium">
+              <span className="relative z-20">
+                <SourceLinks spotifyUrl={item.spotifyUrl} appleUrl={item.appleUrl} />
+              </span>
+              <span className="truncate">{item.name}</span>
+            </span>
+            <div className="text-tertiary truncate text-sm md:hidden">{item.artist}</div>
+            <div className="text-tertiary truncate text-sm md:hidden">
+              {new Date(item.playedAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Desktop-only columns */}
-      <div className="text-tertiary hidden min-w-[110px] flex-1 truncate md:block">
-        {item.artist}
-      </div>
-      <div className="text-tertiary hidden min-w-[110px] flex-1 truncate md:block">
-        {item.album}
-      </div>
-      <div className="text-tertiary hidden min-w-[90px] whitespace-nowrap md:block">
-        {new Date(item.playedAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })}
+        {/* Desktop-only columns */}
+        <div className="text-tertiary hidden min-w-[110px] flex-1 truncate md:block">
+          {item.artist}
+        </div>
+        <div className="text-tertiary hidden min-w-[110px] flex-1 truncate md:block">
+          {item.album}
+        </div>
+        <div className="text-tertiary hidden min-w-[90px] whitespace-nowrap md:block">
+          {new Date(item.playedAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </div>
       </div>
     </div>
   );

@@ -89,6 +89,7 @@ export default async function ListeningPage({
               imageUrl: t.imageUrl,
               spotifyUrl: t.spotifyUrl,
               appleUrl: t.appleUrl,
+              href: `/listening/tracks/${t.id}`,
               plays: t.plays,
             }))}
           />

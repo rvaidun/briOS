@@ -4,6 +4,7 @@ import { db } from "./client";
 
 export type ListenItem = {
   id: string;
+  trackId: string;
   source: "spotify" | "apple_music";
   name: string;
   artist: string;
@@ -48,6 +49,7 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
   const r = await db.execute(sql`
     SELECT
       l.id::text                                       AS id,
+      t.id::text                                       AS track_id,
       l.source                                         AS source,
       l.played_at                                      AS played_at,
       t.name                                           AS name,
@@ -65,6 +67,7 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
 
   type Row = {
     id: string;
+    track_id: string;
     source: "spotify" | "apple_music";
     played_at: Date;
     name: string;
@@ -84,6 +87,7 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
   return {
     items: sliced.map((r) => ({
       id: r.id,
+      trackId: r.track_id,
       source: r.source,
       name: r.name,
       artist: r.artist,

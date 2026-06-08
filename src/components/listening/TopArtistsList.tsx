@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import useSWR from "swr";
 
@@ -116,8 +117,13 @@ function ArtistTracks({
       {data && data.tracks.length > 0 && (
         <ol className="space-y-0.5 py-1">
           {data.tracks.map((t, i) => (
-            <li key={`${i}-${t.name}`}>
-              <div className="flex w-full min-w-0 items-center gap-2 rounded px-2 py-1 text-xs">
+            <li key={`${i}-${t.name}`} className="group hover:bg-secondary/40 relative rounded">
+              <Link
+                href={`/listening/tracks/${t.id}`}
+                aria-label={t.name}
+                className="absolute inset-0 z-10 rounded"
+              />
+              <div className="relative flex w-full min-w-0 items-center gap-2 rounded px-2 py-1 text-xs">
                 <span className="text-quaternary w-4 flex-none text-right text-xs tabular-nums">
                   {i + 1}
                 </span>
@@ -138,7 +144,9 @@ function ArtistTracks({
                 <span className="text-tertiary flex-none text-xs tabular-nums">
                   {t.plays.toLocaleString()}
                 </span>
-                <SourceLinks spotifyUrl={t.spotifyUrl} appleUrl={t.appleUrl} size={12} />
+                <span className="relative z-20">
+                  <SourceLinks spotifyUrl={t.spotifyUrl} appleUrl={t.appleUrl} size={12} />
+                </span>
               </div>
             </li>
           ))}

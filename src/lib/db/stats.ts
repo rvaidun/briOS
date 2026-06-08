@@ -74,6 +74,7 @@ export async function getTopArtists(range: DateRange, limit = 10): Promise<TopAr
 }
 
 export type TopTrack = {
+  id: string;
   name: string;
   artist: string;
   imageUrl: string | null;
@@ -84,6 +85,7 @@ export type TopTrack = {
 };
 
 type TopTrackRow = {
+  id: string;
   name: string;
   artist: string;
   image_url: string | null;
@@ -95,6 +97,7 @@ type TopTrackRow = {
 
 function mapTopTrack(row: TopTrackRow): TopTrack {
   return {
+    id: row.id,
     name: row.name,
     artist: row.artist,
     imageUrl: row.image_url,
@@ -112,6 +115,7 @@ export async function getTopTracksByArtist(
 ): Promise<TopTrack[]> {
   const r = await db.execute(sql`
     select
+      t.id::text as id,
       t.name,
       t.artist,
       t.image_url,
@@ -132,6 +136,7 @@ export async function getTopTracksByArtist(
 export async function getTopTracks(range: DateRange, limit = 10): Promise<TopTrack[]> {
   const r = await db.execute(sql`
     select
+      t.id::text as id,
       t.name,
       t.artist,
       t.image_url,

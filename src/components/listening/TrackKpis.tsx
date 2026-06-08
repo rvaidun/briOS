@@ -1,3 +1,5 @@
+"use client";
+
 import type { TrackOverview } from "@/lib/db/track-stats";
 
 type Props = {
@@ -38,21 +40,35 @@ export function TrackKpis({ overview }: Props) {
         value={overview.durationMs ? formatDuration(overview.totalDurationMs) : "—"}
       />
       <Stat label="Distinct days" value={overview.distinctDays.toLocaleString()} />
-      <Stat label="First played" value={formatDate(overview.firstPlayedAt)} />
-      <Stat label="Last played" value={formatDate(overview.lastPlayedAt)} />
+      <Stat label="First played" value={formatDate(overview.firstPlayedAt)} suppressHydration />
+      <Stat label="Last played" value={formatDate(overview.lastPlayedAt)} suppressHydration />
       <Stat
         label="Days since"
         value={daysSince === null ? "—" : daysSince === 0 ? "Today" : `${daysSince}`}
+        suppressHydration
       />
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  suppressHydration,
+}: {
+  label: string;
+  value: string;
+  suppressHydration?: boolean;
+}) {
   return (
     <div className="border-secondary min-w-0 rounded-md border bg-white p-3 dark:bg-white/5">
       <div className="text-tertiary text-[10px] font-medium tracking-wide uppercase">{label}</div>
-      <div className="text-primary mt-1 truncate text-lg font-semibold tabular-nums">{value}</div>
+      <div
+        className="text-primary mt-1 truncate text-lg font-semibold tabular-nums"
+        suppressHydrationWarning={suppressHydration}
+      >
+        {value}
+      </div>
     </div>
   );
 }

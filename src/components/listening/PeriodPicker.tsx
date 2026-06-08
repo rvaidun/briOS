@@ -7,6 +7,8 @@ import { useState } from "react";
 import { Calendar } from "@/components/icons/Calendar";
 import { Check } from "@/components/icons/Check";
 import { ChevronDown } from "@/components/icons/ChevronDown";
+import { ChevronLeft } from "@/components/icons/ChevronLeft";
+import { ChevronRight } from "@/components/icons/ChevronRight";
 import { Button } from "@/components/ui/Button";
 import { type Period, PERIOD_LABEL, PERIODS } from "@/lib/db/period";
 import { cn } from "@/lib/utils";
@@ -17,6 +19,13 @@ const PERIOD_LABEL_SHORT: Record<Period, string> = {
   "90d": "90d",
   "1y": "1y",
   all: "All",
+};
+
+const PERIOD_DAYS: Record<Exclude<Period, "all">, number> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  "1y": 365,
 };
 
 type Props = {
@@ -44,6 +53,59 @@ function todayISO(): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function isoDateAdd(iso: string, days: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  const [, y, mo, d] = m;
+  const date = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d) + days));
+  const yy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(date.getUTCDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+function diffDaysInclusive(fromIso: string, toIso: string): number {
+  const fm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fromIso);
+  const tm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(toIso);
+  if (!fm || !tm) return 0;
+  const f = Date.UTC(Number(fm[1]), Number(fm[2]) - 1, Number(fm[3]));
+  const t = Date.UTC(Number(tm[1]), Number(tm[2]) - 1, Number(tm[3]));
+  return Math.round((t - f) / 86_400_000) + 1;
+}
+
+// The current window as inclusive [start, end] ISO dates, or null if it's
+// unbounded (all-time, or a partial custom range with only one endpoint).
+function resolveWindow(
+  period: Period | null,
+  from: string | null,
+  to: string | null,
+): { start: string; end: string } | null {
+  if (period === "all") return null;
+  if (period) {
+    const end = todayISO();
+    const start = isoDateAdd(end, -(PERIOD_DAYS[period] - 1));
+    return { start, end };
+  }
+  if (!from || !to) return null;
+  return { start: from, end: to };
+}
+
+function shiftHref(
+  period: Period | null,
+  from: string | null,
+  to: string | null,
+  direction: -1 | 1,
+): string | null {
+  const win = resolveWindow(period, from, to);
+  if (!win) return null;
+  const size = diffDaysInclusive(win.start, win.end);
+  if (size <= 0) return null;
+  const newStart = isoDateAdd(win.start, direction * size);
+  const newEnd = isoDateAdd(win.end, direction * size);
+  if (direction === 1 && newEnd > todayISO()) return null;
+  return `/listening?from=${newStart}&to=${newEnd}`;
 }
 
 export function PeriodPicker({ period, from, to }: Props) {
@@ -93,19 +155,57 @@ export function PeriodPicker({ period, from, to }: Props) {
   const customInvalid =
     fromInput && toInput && new Date(fromInput).getTime() > new Date(toInput).getTime();
 
+  const prevHref = shiftHref(period, from, to, -1);
+  const nextHref = shiftHref(period, from, to, 1);
+
+  function navigateShift(href: string | null) {
+    if (!href) return;
+    router.push(href, { scroll: false });
+  }
+
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange}>
-      <PopoverPrimitive.Trigger
-        className={cn(
-          "border-secondary hover:bg-secondary/60 text-primary inline-flex items-center gap-1.5 rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium transition-colors dark:bg-white/5",
-          "data-[state=open]:bg-secondary/60",
-        )}
-      >
-        <Calendar className="text-tertiary size-3.5" />
-        <span className="hidden sm:inline">{triggerLabel}</span>
-        <span className="sm:hidden">{triggerLabelShort}</span>
-        <ChevronDown className="text-tertiary size-3" />
-      </PopoverPrimitive.Trigger>
+      <div className="border-secondary inline-flex items-stretch overflow-hidden rounded-md border bg-white dark:bg-white/5">
+        <button
+          type="button"
+          onClick={() => navigateShift(prevHref)}
+          disabled={!prevHref}
+          aria-label="Previous range"
+          title="Previous range"
+          className={cn(
+            "hover:bg-secondary/60 text-tertiary hover:text-primary flex items-center px-1.5 transition-colors",
+            "disabled:text-tertiary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+          )}
+        >
+          <ChevronLeft className="size-3.5" />
+        </button>
+        <div className="border-secondary border-l" />
+        <PopoverPrimitive.Trigger
+          className={cn(
+            "hover:bg-secondary/60 text-primary inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-colors",
+            "data-[state=open]:bg-secondary/60",
+          )}
+        >
+          <Calendar className="text-tertiary size-3.5" />
+          <span className="hidden sm:inline">{triggerLabel}</span>
+          <span className="sm:hidden">{triggerLabelShort}</span>
+          <ChevronDown className="text-tertiary size-3" />
+        </PopoverPrimitive.Trigger>
+        <div className="border-secondary border-l" />
+        <button
+          type="button"
+          onClick={() => navigateShift(nextHref)}
+          disabled={!nextHref}
+          aria-label="Next range"
+          title="Next range"
+          className={cn(
+            "hover:bg-secondary/60 text-tertiary hover:text-primary flex items-center px-1.5 transition-colors",
+            "disabled:text-tertiary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+          )}
+        >
+          <ChevronRight className="size-3.5" />
+        </button>
+      </div>
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           align="end"

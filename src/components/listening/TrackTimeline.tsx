@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
@@ -76,9 +76,7 @@ function GranularityToggle({
           onClick={() => onChange(opt.value)}
           className={cn(
             "rounded-sm px-2 py-0.5 text-[11px] font-medium transition-colors",
-            value === opt.value
-              ? "bg-secondary text-primary"
-              : "text-tertiary hover:text-primary",
+            value === opt.value ? "bg-secondary text-primary" : "text-tertiary hover:text-primary",
           )}
         >
           {opt.label}
@@ -100,25 +98,74 @@ function Bars({
   granularity: Granularity;
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
   const ticks = useMemo(() => computeTicks(buckets, granularity), [buckets, granularity]);
 
   const hoveredBucket = hovered !== null ? buckets[hovered] : null;
   const hoveredLeftPct = hovered !== null ? ((hovered + 0.5) / buckets.length) * 100 : 0;
+  // Pin the tooltip into the chart frame so it never gets clipped at the edges
+  // on narrow screens. The chart container is the reference, not the viewport.
+  const tooltipTransform =
+    hoveredLeftPct < 12
+      ? "translateY(-100%) translateX(0)"
+      : hoveredLeftPct > 88
+        ? "translateY(-100%) translateX(-100%)"
+        : "translateY(-100%) translateX(-50%)";
+
+  const setFromClientX = (clientX: number) => {
+    const el = chartRef.current;
+    if (!el || buckets.length === 0) return;
+    const rect = el.getBoundingClientRect();
+    const ratio = (clientX - rect.left) / rect.width;
+    const idx = Math.min(buckets.length - 1, Math.max(0, Math.floor(ratio * buckets.length)));
+    setHovered(idx);
+  };
+
+  // Dismiss the tooltip when a touch lands outside the chart. Mouse uses the
+  // normal pointer-leave path on the container.
+  useEffect(() => {
+    if (hovered === null) return;
+    const onDocPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") return;
+      const el = chartRef.current;
+      if (el && !el.contains(e.target as Node)) setHovered(null);
+    };
+    document.addEventListener("pointerdown", onDocPointerDown);
+    return () => document.removeEventListener("pointerdown", onDocPointerDown);
+  }, [hovered]);
 
   return (
     <div>
-      <div className="relative" onMouseLeave={() => setHovered(null)}>
+      <div
+        ref={chartRef}
+        className="relative"
+        // pan-y lets vertical page scroll through, while horizontal drags
+        // become scrubs through the bars.
+        style={{ touchAction: "pan-y" }}
+        onPointerMove={(e) => {
+          if (e.pointerType === "mouse") {
+            setFromClientX(e.clientX);
+          } else if (e.buttons > 0 || e.pressure > 0) {
+            setFromClientX(e.clientX);
+          }
+        }}
+        onPointerDown={(e) => {
+          if (e.pointerType !== "mouse") setFromClientX(e.clientX);
+        }}
+        onPointerLeave={(e) => {
+          if (e.pointerType === "mouse") setHovered(null);
+        }}
+      >
         {hoveredBucket && (
           <div
-            className="border-secondary bg-primary text-primary pointer-events-none absolute -top-2 z-10 -translate-x-1/2 -translate-y-full rounded-md border px-2 py-1 text-[11px] whitespace-nowrap shadow-md"
-            style={{ left: `${hoveredLeftPct}%` }}
+            className="border-secondary bg-primary text-primary pointer-events-none absolute -top-2 z-10 rounded-md border px-2 py-1 text-[11px] whitespace-nowrap shadow-md"
+            style={{ left: `${hoveredLeftPct}%`, transform: tooltipTransform }}
           >
             <div className="font-medium tabular-nums">
               {formatBucketLabel(hoveredBucket.isoStart, granularity)}
             </div>
             <div className="text-tertiary tabular-nums">
-              {hoveredBucket.plays.toLocaleString()}{" "}
-              {hoveredBucket.plays === 1 ? "play" : "plays"}
+              {hoveredBucket.plays.toLocaleString()} {hoveredBucket.plays === 1 ? "play" : "plays"}
               {hoveredBucket.applePlays > 0 && hoveredBucket.spotifyPlays > 0 && (
                 <>
                   {" · "}
@@ -129,6 +176,12 @@ function Bars({
               )}
             </div>
           </div>
+        )}
+        {hovered !== null && (
+          <div
+            className="bg-primary/30 pointer-events-none absolute top-0 bottom-0 z-0 w-px"
+            style={{ left: `${hoveredLeftPct}%` }}
+          />
         )}
         <div
           className={cn(
@@ -146,10 +199,8 @@ function Bars({
             return (
               <div
                 key={b.isoStart}
-                onMouseEnter={() => setHovered(i)}
-                onClick={() => setHovered((prev) => (prev === i ? null : i))}
                 className={cn(
-                  "group relative flex h-full min-w-0 flex-1 cursor-pointer flex-col justify-end",
+                  "relative flex h-full min-w-0 flex-1 flex-col justify-end",
                   isHovered && "opacity-80",
                 )}
               >
@@ -231,11 +282,7 @@ function YearAxis({
         const leftPct = ((t.index + 0.5) / buckets.length) * 100;
         // Clamp end-most label to stay inside the chart frame.
         const transform =
-          leftPct < 4
-            ? "translateX(0)"
-            : leftPct > 96
-              ? "translateX(-100%)"
-              : "translateX(-50%)";
+          leftPct < 4 ? "translateX(0)" : leftPct > 96 ? "translateX(-100%)" : "translateX(-50%)";
         return (
           <span
             key={t.label}
@@ -331,11 +378,7 @@ function fillBuckets(buckets: TimelineBucket[], granularity: Granularity): Fille
     let cursor = new Date(
       Date.UTC(firstD.getUTCFullYear(), firstD.getUTCMonth(), firstD.getUTCDate()),
     );
-    const endDay = Date.UTC(
-      lastD.getUTCFullYear(),
-      lastD.getUTCMonth(),
-      lastD.getUTCDate(),
-    );
+    const endDay = Date.UTC(lastD.getUTCFullYear(), lastD.getUTCMonth(), lastD.getUTCDate());
     while (cursor.getTime() <= endDay) {
       push(cursor);
       cursor = new Date(cursor.getTime() + 7 * 86_400_000);

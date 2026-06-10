@@ -9,7 +9,6 @@ import { fetcher } from "@/lib/fetcher";
 import { cn } from "@/lib/utils";
 
 const SPOTIFY = "rgb(30 215 96)";
-const APPLE = "rgb(252 70 107)";
 
 type Props = {
   trackId: string;
@@ -166,14 +165,6 @@ function Bars({
             </div>
             <div className="text-tertiary tabular-nums">
               {hoveredBucket.plays.toLocaleString()} {hoveredBucket.plays === 1 ? "play" : "plays"}
-              {hoveredBucket.applePlays > 0 && hoveredBucket.spotifyPlays > 0 && (
-                <>
-                  {" · "}
-                  <span style={{ color: SPOTIFY }}>{hoveredBucket.spotifyPlays}</span>
-                  {" / "}
-                  <span style={{ color: APPLE }}>{hoveredBucket.applePlays}</span>
-                </>
-              )}
             </div>
           </div>
         )}
@@ -193,8 +184,6 @@ function Bars({
           {buckets.map((b, i) => {
             const total = b.plays;
             const heightPct = max > 0 ? (total / max) * 100 : 0;
-            const spotifyPct = total > 0 ? (b.spotifyPlays / total) * 100 : 0;
-            const applePct = total > 0 ? (b.applePlays / total) * 100 : 0;
             const isHovered = hovered === i;
             return (
               <div
@@ -208,16 +197,9 @@ function Bars({
                   <div className="bg-secondary/40 h-px w-full rounded-sm" />
                 ) : (
                   <div
-                    className="flex w-full flex-col-reverse overflow-hidden rounded-sm"
-                    style={{ height: `${Math.max(heightPct, 2)}%` }}
-                  >
-                    {b.spotifyPlays > 0 && (
-                      <div style={{ height: `${spotifyPct}%`, backgroundColor: SPOTIFY }} />
-                    )}
-                    {b.applePlays > 0 && (
-                      <div style={{ height: `${applePct}%`, backgroundColor: APPLE }} />
-                    )}
-                  </div>
+                    className="w-full rounded-sm"
+                    style={{ height: `${Math.max(heightPct, 2)}%`, backgroundColor: SPOTIFY }}
+                  />
                 )}
               </div>
             );
@@ -348,8 +330,6 @@ function fillBuckets(buckets: TimelineBucket[], granularity: Granularity): Fille
       isoStart: iso,
       bucket: iso,
       plays: hit?.plays ?? 0,
-      spotifyPlays: hit?.spotifyPlays ?? 0,
-      applePlays: hit?.applePlays ?? 0,
     });
   };
 

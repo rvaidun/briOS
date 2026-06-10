@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { Heatmap } from "@/components/listening/Heatmap";
 import { PeriodPicker } from "@/components/listening/PeriodPicker";
-import { SourceSplit } from "@/components/listening/SourceSplit";
 import { StatsSummary } from "@/components/listening/StatsSummary";
 import { TopArtistsList } from "@/components/listening/TopArtistsList";
 import { TopList } from "@/components/listening/TopList";
@@ -73,7 +72,6 @@ export default async function ListeningPage({
           <div className="flex flex-col gap-3 md:w-[40%] md:flex-1">
             <h2 className="text-primary text-sm font-semibold">Stats</h2>
             <StatsSummary summary={stats.summary} />
-            <SourceSplit breakdown={stats.sourceBreakdown} />
             <Heatmap cells={stats.heatmap} />
           </div>
         </div>
@@ -88,7 +86,6 @@ export default async function ListeningPage({
               secondary: t.artist,
               imageUrl: t.imageUrl,
               spotifyUrl: t.spotifyUrl,
-              appleUrl: t.appleUrl,
               href: `/listening/tracks/${t.id}`,
               plays: t.plays,
             }))}

@@ -43,6 +43,13 @@
       "when": 1780934702751,
       "tag": "0005_flat_bloodscream",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781126049375,
+      "tag": "0006_brave_jane_foster",
+      "breakpoints": true
     }
   ]
 }

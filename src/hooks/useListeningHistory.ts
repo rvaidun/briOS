@@ -9,12 +9,11 @@ import { InfiniteScrollPage, useInfiniteScroll } from "./useInfiniteScroll";
 export type MusicItem = {
   id: string;
   trackId: string;
-  source: "spotify" | "apple_music";
+  source: "spotify";
   name: string;
   artist: string;
   album: string;
   spotifyUrl?: string;
-  appleUrl?: string;
   playedAt: string;
   image?: string;
 };

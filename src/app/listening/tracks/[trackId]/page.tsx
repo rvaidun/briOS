@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 
 import { Heatmap } from "@/components/listening/Heatmap";
 import { SourceLinks } from "@/components/listening/SourceLinks";
-import { SourceSplit } from "@/components/listening/SourceSplit";
 import { TrackHeader } from "@/components/listening/TrackHeader";
 import { TrackKpis } from "@/components/listening/TrackKpis";
 import { TrackTimeline } from "@/components/listening/TrackTimeline";
@@ -14,7 +13,6 @@ import {
   getMoreByArtist,
   getTrackHeatmap,
   getTrackOverview,
-  getTrackSourceBreakdown,
   getTrackTimeline,
 } from "@/lib/db/track-stats";
 import { createMetadata } from "@/lib/metadata";
@@ -40,21 +38,16 @@ export async function generateMetadata({
   });
 }
 
-export default async function TrackPage({
-  params,
-}: {
-  params: Promise<{ trackId: string }>;
-}) {
+export default async function TrackPage({ params }: { params: Promise<{ trackId: string }> }) {
   const { trackId } = await params;
   if (!UUID_RE.test(trackId)) notFound();
 
   const overview = await getTrackOverview(trackId);
   if (!overview) notFound();
 
-  const [timeline, heatmap, sources, moreByArtist] = await Promise.all([
+  const [timeline, heatmap, moreByArtist] = await Promise.all([
     getTrackTimeline(trackId, "month"),
     getTrackHeatmap(trackId),
-    getTrackSourceBreakdown(trackId),
     getMoreByArtist(trackId, overview.artist, 5),
   ]);
 
@@ -74,25 +67,17 @@ export default async function TrackPage({
           album={overview.album}
           imageUrl={overview.imageUrl}
           spotifyUrl={overview.spotifyUrl}
-          appleUrl={overview.appleUrl}
         />
 
         <TrackKpis overview={overview} />
 
-        <TrackTimeline
-          trackId={trackId}
-          initialBuckets={timeline}
-          initialGranularity="month"
-        />
+        <TrackTimeline trackId={trackId} initialBuckets={timeline} initialGranularity="month" />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           <Heatmap cells={heatmap} />
-          <div className="flex flex-col gap-4">
-            <SourceSplit breakdown={sources} />
-            {moreByArtist.length > 0 && (
-              <MoreByArtist artist={overview.artist} items={moreByArtist} />
-            )}
-          </div>
+          {moreByArtist.length > 0 && (
+            <MoreByArtist artist={overview.artist} items={moreByArtist} />
+          )}
         </div>
       </div>
     </div>
@@ -141,7 +126,7 @@ function MoreByArtist({
                 {t.plays.toLocaleString()}
               </span>
               <span className="relative z-20">
-                <SourceLinks spotifyUrl={t.spotifyUrl} appleUrl={t.appleUrl} size={12} />
+                <SourceLinks spotifyUrl={t.spotifyUrl} size={12} />
               </span>
             </div>
           </li>

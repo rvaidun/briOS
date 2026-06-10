@@ -11,10 +11,9 @@ type Props = {
   album: string | null;
   imageUrl: string | null;
   spotifyUrl: string | null;
-  appleUrl: string | null;
 };
 
-export function TrackHeader({ name, artist, album, imageUrl, spotifyUrl, appleUrl }: Props) {
+export function TrackHeader({ name, artist, album, imageUrl, spotifyUrl }: Props) {
   return (
     <div className="border-secondary rounded-md border bg-white p-4 dark:bg-white/5">
       <Link
@@ -41,7 +40,7 @@ export function TrackHeader({ name, artist, album, imageUrl, spotifyUrl, appleUr
           <div className="text-secondary mt-0.5 truncate text-sm">{artist}</div>
           {album && <div className="text-tertiary mt-0.5 truncate text-xs">{album}</div>}
           <div className="mt-2">
-            <SourceLinks spotifyUrl={spotifyUrl} appleUrl={appleUrl} size={16} />
+            <SourceLinks spotifyUrl={spotifyUrl} size={16} />
           </div>
         </div>
       </div>

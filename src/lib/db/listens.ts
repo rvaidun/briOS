@@ -5,12 +5,11 @@ import { db } from "./client";
 export type ListenItem = {
   id: string;
   trackId: string;
-  source: "spotify" | "apple_music";
+  source: "spotify";
   name: string;
   artist: string;
   album: string;
   spotifyUrl?: string;
-  appleUrl?: string;
   playedAt: string;
   image?: string;
 };
@@ -56,8 +55,7 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
       t.artist                                         AS artist,
       t.album                                          AS album,
       t.image_url                                      AS image,
-      (t.sources -> 'spotify'     ->> 'url')           AS spotify_url,
-      (t.sources -> 'apple_music' ->> 'url')           AS apple_url
+      (t.sources -> 'spotify' ->> 'url')               AS spotify_url
     FROM listens l
     JOIN tracks t ON t.id = l.track_id
     WHERE ${cursorPredicate}
@@ -68,14 +66,13 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
   type Row = {
     id: string;
     track_id: string;
-    source: "spotify" | "apple_music";
+    source: "spotify";
     played_at: Date;
     name: string;
     artist: string;
     album: string | null;
     image: string | null;
     spotify_url: string | null;
-    apple_url: string | null;
   };
 
   const rows = r.rows as Row[];
@@ -93,7 +90,6 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
       artist: r.artist,
       album: r.album ?? "",
       spotifyUrl: r.spotify_url ?? undefined,
-      appleUrl: r.apple_url ?? undefined,
       playedAt: new Date(r.played_at).toISOString(),
       image: r.image ?? undefined,
     })),

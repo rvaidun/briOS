@@ -145,7 +145,7 @@ function ArtistTracks({
                   {t.plays.toLocaleString()}
                 </span>
                 <span className="relative z-20">
-                  <SourceLinks spotifyUrl={t.spotifyUrl} appleUrl={t.appleUrl} size={12} />
+                  <SourceLinks spotifyUrl={t.spotifyUrl} size={12} />
                 </span>
               </div>
             </li>

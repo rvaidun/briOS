@@ -8,7 +8,6 @@ export type TopListItem = {
   secondary?: string;
   imageUrl?: string | null;
   spotifyUrl?: string | null;
-  appleUrl?: string | null;
   href?: string;
   plays: number;
 };
@@ -72,7 +71,7 @@ export function TopList({
                   </span>
                   {/* z-20 keeps the per-source icon links above the row-wide link overlay. */}
                   <span className="relative z-20">
-                    <SourceLinks spotifyUrl={item.spotifyUrl} appleUrl={item.appleUrl} />
+                    <SourceLinks spotifyUrl={item.spotifyUrl} />
                   </span>
                 </div>
                 <div

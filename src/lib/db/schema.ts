@@ -10,9 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-// Open-ended so a third provider (tidal, ytm, ...) can be added by extending
-// the union here and writing one expression index — no schema migration.
-export type SourceKey = "spotify" | "apple_music";
+export type SourceKey = "spotify";
 
 // Per-source metadata for a track. `resolved_at` is always set after a lookup
 // attempt; if `track_id`/`url` are absent the resolver checked and found
@@ -65,7 +63,7 @@ export const listens = pgTable(
     id: uuid("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    source: text("source", { enum: ["spotify", "apple_music"] }).notNull(),
+    source: text("source", { enum: ["spotify"] }).notNull(),
     trackId: uuid("track_id")
       .notNull()
       .references(() => tracks.id, { onDelete: "cascade" }),
@@ -91,19 +89,6 @@ export const oauthTokens = pgTable("oauth_tokens", {
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token"),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-});
-
-// Key/value scratchpad for cron-side state that doesn't fit anywhere else.
-// Currently holds the most recent Apple Music recently-played snapshot so the
-// next run can diff against it (Apple's API has no per-play identifier, so
-// snapshot diff is the only way to detect new plays without re-inserting the
-// same tracks every couple hours).
-export const syncState = pgTable("sync_state", {
-  key: text("key").primaryKey(),
-  value: jsonb("value").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),

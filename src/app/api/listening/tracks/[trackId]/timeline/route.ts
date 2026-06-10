@@ -3,10 +3,7 @@ import { getTrackTimeline, isGranularity } from "@/lib/db/track-stats";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ trackId: string }> },
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ trackId: string }> }) {
   try {
     const { trackId } = await params;
     if (!UUID_RE.test(trackId)) return errorResponse("invalid trackId", 400);

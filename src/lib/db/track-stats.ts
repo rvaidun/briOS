@@ -12,7 +12,6 @@ export type TrackOverview = {
   imageUrl: string | null;
   durationMs: number | null;
   spotifyUrl: string | null;
-  appleUrl: string | null;
   totalPlays: number;
   totalDurationMs: number;
   firstPlayedAt: string | null;
@@ -29,8 +28,7 @@ export async function getTrackOverview(trackId: string): Promise<TrackOverview |
       t.album                                          as album,
       t.image_url                                      as image_url,
       t.duration_ms                                    as duration_ms,
-      (t.sources -> 'spotify'     ->> 'url')           as spotify_url,
-      (t.sources -> 'apple_music' ->> 'url')           as apple_url,
+      (t.sources -> 'spotify' ->> 'url')               as spotify_url,
       coalesce(s.plays, 0)::int                        as plays,
       coalesce(s.plays * t.duration_ms, 0)::bigint     as total_ms,
       s.first_played_at                                as first_played_at,
@@ -61,7 +59,6 @@ export async function getTrackOverview(trackId: string): Promise<TrackOverview |
     image_url: string | null;
     duration_ms: number | null;
     spotify_url: string | null;
-    apple_url: string | null;
     plays: number;
     total_ms: string;
     first_played_at: Date | null;
@@ -76,7 +73,6 @@ export async function getTrackOverview(trackId: string): Promise<TrackOverview |
     imageUrl: row.image_url,
     durationMs: row.duration_ms,
     spotifyUrl: row.spotify_url,
-    appleUrl: row.apple_url,
     totalPlays: row.plays,
     totalDurationMs: Number(row.total_ms),
     firstPlayedAt: row.first_played_at ? new Date(row.first_played_at).toISOString() : null,
@@ -95,8 +91,6 @@ export function isGranularity(value: string | undefined | null): value is Granul
 export type TimelineBucket = {
   bucket: string;
   plays: number;
-  spotifyPlays: number;
-  applePlays: number;
 };
 
 // Returns one row per non-empty bucket between the track's first and last play.
@@ -105,14 +99,11 @@ export async function getTrackTimeline(
   trackId: string,
   granularity: Granularity,
 ): Promise<TimelineBucket[]> {
-  const truncUnit =
-    granularity === "week" ? "week" : granularity === "year" ? "year" : "month";
+  const truncUnit = granularity === "week" ? "week" : granularity === "year" ? "year" : "month";
   const r = await db.execute(sql`
     select
-      date_trunc(${truncUnit}, l.played_at at time zone ${LOCAL_TZ})           as bucket,
-      count(*)::int                                                            as plays,
-      count(*) filter (where l.source = 'spotify')::int                        as spotify_plays,
-      count(*) filter (where l.source = 'apple_music')::int                    as apple_plays
+      date_trunc(${truncUnit}, l.played_at at time zone ${LOCAL_TZ}) as bucket,
+      count(*)::int                                                  as plays
     from listens l
     where l.track_id = ${trackId}
     group by 1
@@ -122,14 +113,10 @@ export async function getTrackTimeline(
     r.rows as {
       bucket: Date | string;
       plays: number;
-      spotify_plays: number;
-      apple_plays: number;
     }[]
   ).map((row) => ({
     bucket: new Date(row.bucket).toISOString(),
     plays: row.plays,
-    spotifyPlays: row.spotify_plays,
-    applePlays: row.apple_plays,
   }));
 }
 
@@ -137,8 +124,6 @@ export type TrackHeatmapCell = {
   dayOfWeek: number;
   hourOfDay: number;
   plays: number;
-  spotifyPlays: number;
-  applePlays: number;
 };
 
 export async function getTrackHeatmap(trackId: string): Promise<TrackHeatmapCell[]> {
@@ -146,9 +131,7 @@ export async function getTrackHeatmap(trackId: string): Promise<TrackHeatmapCell
     select
       extract(dow  from l.played_at at time zone ${LOCAL_TZ})::int as day_of_week,
       extract(hour from l.played_at at time zone ${LOCAL_TZ})::int as hour_of_day,
-      count(*)::int as plays,
-      count(*) filter (where l.source = 'spotify')::int     as spotify_plays,
-      count(*) filter (where l.source = 'apple_music')::int as apple_plays
+      count(*)::int as plays
     from listens l
     where l.track_id = ${trackId}
     group by 1, 2
@@ -158,29 +141,12 @@ export async function getTrackHeatmap(trackId: string): Promise<TrackHeatmapCell
       day_of_week: number;
       hour_of_day: number;
       plays: number;
-      spotify_plays: number;
-      apple_plays: number;
     }[]
   ).map((row) => ({
     dayOfWeek: row.day_of_week,
     hourOfDay: row.hour_of_day,
     plays: row.plays,
-    spotifyPlays: row.spotify_plays,
-    applePlays: row.apple_plays,
   }));
-}
-
-export type TrackSourceBreakdown = { source: string; plays: number };
-
-export async function getTrackSourceBreakdown(trackId: string): Promise<TrackSourceBreakdown[]> {
-  const r = await db.execute(sql`
-    select l.source, count(*)::int as plays
-    from listens l
-    where l.track_id = ${trackId}
-    group by l.source
-    order by plays desc
-  `);
-  return r.rows as TrackSourceBreakdown[];
 }
 
 export type MoreByArtistItem = {
@@ -188,7 +154,6 @@ export type MoreByArtistItem = {
   name: string;
   imageUrl: string | null;
   spotifyUrl: string | null;
-  appleUrl: string | null;
   plays: number;
 };
 
@@ -202,8 +167,7 @@ export async function getMoreByArtist(
       t.id::text                                       as id,
       t.name                                           as name,
       t.image_url                                      as image_url,
-      (t.sources -> 'spotify'     ->> 'url')           as spotify_url,
-      (t.sources -> 'apple_music' ->> 'url')           as apple_url,
+      (t.sources -> 'spotify' ->> 'url')               as spotify_url,
       count(l.id)::int                                 as plays
     from tracks t
     left join listens l on l.track_id = t.id
@@ -218,7 +182,6 @@ export async function getMoreByArtist(
       name: string;
       image_url: string | null;
       spotify_url: string | null;
-      apple_url: string | null;
       plays: number;
     }[]
   ).map((row) => ({
@@ -226,7 +189,6 @@ export async function getMoreByArtist(
     name: row.name,
     imageUrl: row.image_url,
     spotifyUrl: row.spotify_url,
-    appleUrl: row.apple_url,
     plays: row.plays,
   }));
 }

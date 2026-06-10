@@ -52,9 +52,8 @@ interface ListeningHistoryRowProps {
     album: string;
     image?: string;
     spotifyUrl?: string;
-    appleUrl?: string;
     playedAt: string;
-    source: "spotify" | "apple_music";
+    source: "spotify";
   };
 }
 
@@ -101,7 +100,7 @@ function ListeningHistoryRow({ item }: ListeningHistoryRowProps) {
           <div className="min-w-0 flex-1">
             <span className="text-primary flex items-center gap-1.5 truncate font-medium">
               <span className="relative z-20">
-                <SourceLinks spotifyUrl={item.spotifyUrl} appleUrl={item.appleUrl} />
+                <SourceLinks spotifyUrl={item.spotifyUrl} />
               </span>
               <span className="truncate">{item.name}</span>
             </span>

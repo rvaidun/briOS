@@ -79,7 +79,6 @@ export type TopTrack = {
   artist: string;
   imageUrl: string | null;
   spotifyUrl: string | null;
-  appleUrl: string | null;
   plays: number;
   totalDurationMs: number;
 };
@@ -90,7 +89,6 @@ type TopTrackRow = {
   artist: string;
   image_url: string | null;
   spotify_url: string | null;
-  apple_url: string | null;
   plays: number;
   total_ms: string;
 };
@@ -102,7 +100,6 @@ function mapTopTrack(row: TopTrackRow): TopTrack {
     artist: row.artist,
     imageUrl: row.image_url,
     spotifyUrl: row.spotify_url,
-    appleUrl: row.apple_url,
     plays: row.plays,
     totalDurationMs: Number(row.total_ms),
   };
@@ -119,8 +116,7 @@ export async function getTopTracksByArtist(
       t.name,
       t.artist,
       t.image_url,
-      (t.sources -> 'spotify'     ->> 'url') as spotify_url,
-      (t.sources -> 'apple_music' ->> 'url') as apple_url,
+      (t.sources -> 'spotify' ->> 'url') as spotify_url,
       count(*)::int as plays,
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
@@ -140,8 +136,7 @@ export async function getTopTracks(range: DateRange, limit = 10): Promise<TopTra
       t.name,
       t.artist,
       t.image_url,
-      (t.sources -> 'spotify'     ->> 'url') as spotify_url,
-      (t.sources -> 'apple_music' ->> 'url') as apple_url,
+      (t.sources -> 'spotify' ->> 'url') as spotify_url,
       count(*)::int as plays,
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
@@ -194,25 +189,10 @@ export async function getTopAlbums(range: DateRange, limit = 10): Promise<TopAlb
   }));
 }
 
-export type SourceBreakdown = { source: string; plays: number };
-
-export async function getSourceBreakdown(range: DateRange): Promise<SourceBreakdown[]> {
-  const r = await db.execute(sql`
-    select l.source, count(*)::int as plays
-    from listens l
-    where ${rangePredicate(range)}
-    group by l.source
-    order by plays desc
-  `);
-  return r.rows as SourceBreakdown[];
-}
-
 export type HeatmapCell = {
   dayOfWeek: number;
   hourOfDay: number;
   plays: number;
-  spotifyPlays: number;
-  applePlays: number;
 };
 
 export async function getHeatmap(range: DateRange): Promise<HeatmapCell[]> {
@@ -220,9 +200,7 @@ export async function getHeatmap(range: DateRange): Promise<HeatmapCell[]> {
     select
       extract(dow  from l.played_at at time zone ${LOCAL_TZ})::int as day_of_week,
       extract(hour from l.played_at at time zone ${LOCAL_TZ})::int as hour_of_day,
-      count(*)::int as plays,
-      count(*) filter (where l.source = 'spotify')::int     as spotify_plays,
-      count(*) filter (where l.source = 'apple_music')::int as apple_plays
+      count(*)::int as plays
     from listens l
     where ${rangePredicate(range)}
     group by 1, 2
@@ -232,15 +210,11 @@ export async function getHeatmap(range: DateRange): Promise<HeatmapCell[]> {
       day_of_week: number;
       hour_of_day: number;
       plays: number;
-      spotify_plays: number;
-      apple_plays: number;
     }[]
   ).map((row) => ({
     dayOfWeek: row.day_of_week,
     hourOfDay: row.hour_of_day,
     plays: row.plays,
-    spotifyPlays: row.spotify_plays,
-    applePlays: row.apple_plays,
   }));
 }
 
@@ -249,18 +223,16 @@ export type ListeningStats = {
   topArtists: TopArtist[];
   topTracks: TopTrack[];
   topAlbums: TopAlbum[];
-  sourceBreakdown: SourceBreakdown[];
   heatmap: HeatmapCell[];
 };
 
 export async function getListeningStats(range: DateRange): Promise<ListeningStats> {
-  const [summary, topArtists, topTracks, topAlbums, sourceBreakdown, heatmap] = await Promise.all([
+  const [summary, topArtists, topTracks, topAlbums, heatmap] = await Promise.all([
     getSummary(range),
     getTopArtists(range, 10),
     getTopTracks(range, 10),
     getTopAlbums(range, 10),
-    getSourceBreakdown(range),
     getHeatmap(range),
   ]);
-  return { summary, topArtists, topTracks, topAlbums, sourceBreakdown, heatmap };
+  return { summary, topArtists, topTracks, topAlbums, heatmap };
 }

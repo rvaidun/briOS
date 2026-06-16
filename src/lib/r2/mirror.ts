@@ -19,6 +19,47 @@ export type MirrorMediaResult = {
   height?: number;
 };
 
+/**
+ * Thrown when mirroring fails for a URL that *must not* be returned as a
+ * fallback (e.g. a signed S3 URL that will expire). Callers up the chain are
+ * expected to let this propagate so Next ISR keeps serving the previous
+ * (working) HTML rather than baking an expiring URL into the next cache slot.
+ */
+export class MirrorError extends Error {
+  readonly r2MirrorError = true;
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message);
+    this.name = "MirrorError";
+    if (options?.cause !== undefined) {
+      (this as { cause?: unknown }).cause = options.cause;
+    }
+  }
+}
+
+export function isMirrorError(error: unknown): error is MirrorError {
+  return (
+    error instanceof MirrorError ||
+    (typeof error === "object" &&
+      error !== null &&
+      (error as { r2MirrorError?: boolean }).r2MirrorError === true)
+  );
+}
+
+/**
+ * Heuristic: an "expiring" URL is a signed S3/CDN URL whose access window will
+ * lapse (Notion's `file.url` is exactly this). For these URLs we must never
+ * fall back to returning the source on mirror failure — once baked into the
+ * 24h ISR cache, the URL 403s shortly after.
+ */
+function isExpiringUrl(url: string): boolean {
+  try {
+    const params = new URL(url).searchParams;
+    return params.has("X-Amz-Signature") || params.has("X-Amz-Expires");
+  } catch {
+    return false;
+  }
+}
+
 const DEFAULT_EXTENSION: Record<MirrorKind, string> = {
   image: "bin",
   video: "bin",
@@ -66,7 +107,16 @@ export async function mirrorUrlToR2(
   key: string,
   options: MirrorUrlOptions = {},
 ): Promise<string> {
-  if (!isR2Configured()) return sourceUrl;
+  const expiring = isExpiringUrl(sourceUrl);
+
+  if (!isR2Configured()) {
+    if (expiring) {
+      throw new MirrorError(
+        `R2 not configured but sourceUrl is an expiring signed URL (key=${key}). Set R2_S3_API_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_URL.`,
+      );
+    }
+    return sourceUrl;
+  }
 
   const publicUrl = `${R2_PUBLIC_URL}/${key}`;
 
@@ -88,10 +138,7 @@ export async function mirrorUrlToR2(
 
       const response = await fetch(sourceUrl);
       if (!response.ok) {
-        console.error(
-          `[r2-mirror] fetch failed for ${key}: ${response.status} ${response.statusText}`,
-        );
-        return sourceUrl;
+        throw new Error(`fetch ${sourceUrl} → ${response.status} ${response.statusText}`);
       }
 
       const contentType =
@@ -111,6 +158,9 @@ export async function mirrorUrlToR2(
       return publicUrl;
     } catch (error) {
       console.error(`[r2-mirror] failed to mirror ${key}:`, error);
+      if (expiring) {
+        throw new MirrorError(`failed to mirror expiring URL to ${key}`, { cause: error });
+      }
       return sourceUrl;
     } finally {
       inflight.delete(key);

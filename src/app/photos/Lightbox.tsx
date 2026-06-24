@@ -15,9 +15,22 @@ interface LightboxProps {
 
 const SWIPE_THRESHOLD = 50;
 
+function formatPhotoDate(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export function Lightbox({ photos, index, onClose, onIndexChange }: LightboxProps) {
   const open = index !== null;
   const photo = open ? photos[index!] : null;
+  const prevPhoto = open && index! > 0 ? photos[index! - 1] : null;
+  const nextPhoto = open && index! < photos.length - 1 ? photos[index! + 1] : null;
   const touchStartX = useRef<number | null>(null);
 
   const next = useCallback(() => {
@@ -71,6 +84,46 @@ export function Lightbox({ photos, index, onClose, onIndexChange }: LightboxProp
                 priority
                 className="max-h-full max-w-full object-contain"
               />
+              {/* Preload neighbors so arrow nav feels instant */}
+              <div aria-hidden className="pointer-events-none invisible absolute h-0 w-0">
+                {prevPhoto && (
+                  <Image
+                    key={`pre-${prevPhoto.id}`}
+                    src={prevPhoto.baseUrl}
+                    width={prevPhoto.width}
+                    height={prevPhoto.height}
+                    sizes="100vw"
+                    alt=""
+                    priority
+                  />
+                )}
+                {nextPhoto && (
+                  <Image
+                    key={`pre-${nextPhoto.id}`}
+                    src={nextPhoto.baseUrl}
+                    width={nextPhoto.width}
+                    height={nextPhoto.height}
+                    sizes="100vw"
+                    alt=""
+                    priority
+                  />
+                )}
+              </div>
+            </div>
+          )}
+          {photo && (
+            <div className="pointer-events-none absolute right-0 bottom-0 left-0 flex items-end justify-between gap-4 bg-gradient-to-t from-black/70 to-transparent p-4 pt-12 sm:p-6 sm:pt-16">
+              <div className="min-w-0 text-white">
+                <div className="text-xs tracking-[0.18em] text-white/60 uppercase">
+                  {formatPhotoDate(photo.creationTime)}
+                </div>
+                {photo.description && (
+                  <div className="mt-1 truncate text-sm text-white/85">{photo.description}</div>
+                )}
+              </div>
+              <div className="shrink-0 font-mono text-xs text-white/60 tabular-nums">
+                {index! + 1} / {photos.length}
+              </div>
             </div>
           )}
           <button

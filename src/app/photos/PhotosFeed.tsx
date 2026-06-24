@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { LoadingSpinner } from "@/components/ui";
 import { type PhotosPage, usePhotosPaginated } from "@/hooks/usePhotos";
@@ -13,42 +13,65 @@ interface PhotosFeedProps {
   initialData?: PhotosPage[];
 }
 
-const DRIFT_PATTERN: Array<{ colStart: number; colSpan: number }> = [
-  { colStart: 1, colSpan: 7 },
-  { colStart: 6, colSpan: 7 },
-  { colStart: 3, colSpan: 7 },
-  { colStart: 1, colSpan: 6 },
-  { colStart: 7, colSpan: 6 },
-  { colStart: 4, colSpan: 7 },
-];
+const GAP = 6;
+const TARGET_ROW_HEIGHT_DESKTOP = 320;
+const TARGET_ROW_HEIGHT_TABLET = 240;
+const MOBILE_BREAKPOINT = 640;
 
-function driftFor(index: number) {
-  return DRIFT_PATTERN[index % DRIFT_PATTERN.length];
+interface Item {
+  photo: Photo;
+  index: number;
 }
 
-function dayKey(iso: string): string {
-  if (!iso) return "";
-  return iso.slice(0, 10);
+interface RowItem extends Item {
+  width: number;
+  height: number;
 }
 
-function yearKey(iso: string): string {
-  if (!iso) return "";
-  return iso.slice(0, 4);
+interface Row {
+  items: RowItem[];
+  height: number;
 }
 
-function formatDayLabel(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  const month = date.toLocaleString("en-US", { month: "short" }).toUpperCase();
-  return `${month} · ${date.getDate()}`;
-}
+// Greedy row packer: append photos until the row would overflow, then scale
+// the row to fit the container exactly. Last row keeps its target height so a
+// single trailing photo doesn't blow up to full-bleed.
+function packRows(items: Item[], containerWidth: number, targetHeight: number): Row[] {
+  if (containerWidth <= 0 || items.length === 0) return [];
 
-interface FeedRow {
-  type: "divider" | "photo" | "year";
-  key: string;
-  label?: string;
-  photo?: Photo;
-  index?: number;
+  const rows: Row[] = [];
+  let buf: Array<Item & { ar: number }> = [];
+  let sumAR = 0;
+
+  const flush = (isLast: boolean) => {
+    if (buf.length === 0) return;
+    const n = buf.length;
+    const gapsTotal = (n - 1) * GAP;
+    const fitHeight = (containerWidth - gapsTotal) / sumAR;
+    const naturalWidth = sumAR * targetHeight + gapsTotal;
+    const h = isLast && naturalWidth < containerWidth ? targetHeight : fitHeight;
+    rows.push({
+      height: h,
+      items: buf.map((b) => ({
+        photo: b.photo,
+        index: b.index,
+        width: b.ar * h,
+        height: h,
+      })),
+    });
+    buf = [];
+    sumAR = 0;
+  };
+
+  for (const item of items) {
+    const ar = item.photo.width / item.photo.height;
+    buf.push({ ...item, ar });
+    sumAR += ar;
+    const naturalWidth = sumAR * targetHeight + (buf.length - 1) * GAP;
+    if (naturalWidth >= containerWidth) flush(false);
+  }
+  flush(true);
+  return rows;
 }
 
 export function PhotosFeed({ initialData }: PhotosFeedProps) {
@@ -58,34 +81,45 @@ export function PhotosFeed({ initialData }: PhotosFeedProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const isRequestingMore = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
 
-  const rows = useMemo<FeedRow[]>(() => {
-    const out: FeedRow[] = [];
-    let lastDay = "";
-    let lastYear = "";
-    items.forEach((photo, index) => {
-      const year = yearKey(photo.creationTime);
-      if (year && year !== lastYear) {
-        lastYear = year;
-        out.push({
-          type: "year",
-          key: `year-${year}-${index}`,
-          label: year,
-        });
-      }
-      const day = dayKey(photo.creationTime);
-      if (day && day !== lastDay) {
-        lastDay = day;
-        out.push({
-          type: "divider",
-          key: `divider-${day}-${index}`,
-          label: formatDayLabel(photo.creationTime),
-        });
-      }
-      out.push({ type: "photo", key: photo.id, photo, index });
-    });
-    return out;
-  }, [items]);
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      setContainerWidth(el.clientWidth);
+      setViewportWidth(window.innerWidth);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+
+  const targetHeight = useMemo(() => {
+    if (viewportWidth === 0) return TARGET_ROW_HEIGHT_DESKTOP;
+    // On mobile we want one photo per row — target = container width forces
+    // every photo to overflow on its own and flush as a single-item row.
+    if (viewportWidth < MOBILE_BREAKPOINT) return containerWidth;
+    if (viewportWidth < 1024) return TARGET_ROW_HEIGHT_TABLET;
+    return TARGET_ROW_HEIGHT_DESKTOP;
+  }, [viewportWidth, containerWidth]);
+
+  const packedItems = useMemo<Item[]>(
+    () => items.map((photo, index) => ({ photo, index })),
+    [items],
+  );
+
+  const rows = useMemo(
+    () => packRows(packedItems, containerWidth, targetHeight),
+    [packedItems, containerWidth, targetHeight],
+  );
 
   const loadMore = useCallback(async () => {
     if (isRequestingMore.current || isLoadingMore || isReachingEnd || isLoading) return;
@@ -138,54 +172,31 @@ export function PhotosFeed({ initialData }: PhotosFeedProps) {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-8 sm:py-16">
-        <div className="grid grid-cols-1 gap-y-8 sm:grid-cols-12 sm:gap-y-24">
-          {rows.map((row) => {
-            if (row.type === "year") {
-              return (
-                <div
-                  key={row.key}
-                  className="text-secondary col-span-full mt-8 mb-2 text-left font-sans text-3xl font-semibold tracking-tight first:mt-0 sm:mt-16 sm:text-right sm:text-4xl"
-                >
-                  {row.label}
-                </div>
-              );
-            }
-            if (row.type === "divider") {
-              return (
-                <div
-                  key={row.key}
-                  className="text-tertiary col-span-full text-left text-xs tracking-[0.2em] uppercase sm:text-right"
-                >
-                  {row.label}
-                </div>
-              );
-            }
-            const photo = row.photo!;
-            const slot = driftFor(row.index!);
-            return (
-              <div key={row.key} className="contents">
-                <div
-                  className="sm:hidden"
-                  style={{
-                    paddingLeft: `${(row.index! % 3) * 4}%`,
-                    paddingRight: `${((row.index! + 1) % 3) * 4}%`,
-                  }}
-                >
-                  <PhotoCardWrapper photo={photo} onOpen={() => setLightboxIndex(row.index!)} />
-                </div>
-                <div className="hidden sm:contents">
+      <div
+        ref={containerRef}
+        className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8"
+      >
+        {containerWidth === 0 ? (
+          <div className="flex h-64 items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        ) : (
+          <div className="flex flex-col" style={{ rowGap: GAP }}>
+            {rows.map((row, ri) => (
+              <div key={ri} className="flex" style={{ columnGap: GAP }}>
+                {row.items.map((item) => (
                   <PhotoCard
-                    photo={photo}
-                    colStart={slot.colStart}
-                    colSpan={slot.colSpan}
-                    onOpen={() => setLightboxIndex(row.index!)}
+                    key={item.photo.id}
+                    photo={item.photo}
+                    width={item.width}
+                    height={item.height}
+                    onOpen={() => setLightboxIndex(item.index)}
                   />
-                </div>
+                ))}
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
 
         {!isReachingEnd && (
           <div ref={sentinelRef} className="flex h-12 items-center justify-center pt-12">
@@ -202,8 +213,4 @@ export function PhotosFeed({ initialData }: PhotosFeedProps) {
       />
     </>
   );
-}
-
-function PhotoCardWrapper({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
-  return <PhotoCard photo={photo} colStart={1} colSpan={1} onOpen={onOpen} />;
 }

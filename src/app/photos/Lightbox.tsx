@@ -73,7 +73,7 @@ export function Lightbox({ photos, index, onClose, onIndexChange }: LightboxProp
         >
           <Dialog.Title className="sr-only">Photo viewer</Dialog.Title>
           {photo && (
-            <div className="relative flex h-full w-full items-center justify-center p-4 sm:p-8">
+            <div className="relative flex h-full w-full items-center justify-center px-4 pt-4 pb-14 sm:px-8 sm:pt-8 sm:pb-16">
               <Image
                 key={photo.id}
                 src={photo.baseUrl}
@@ -112,16 +112,17 @@ export function Lightbox({ photos, index, onClose, onIndexChange }: LightboxProp
             </div>
           )}
           {photo && (
-            <div className="pointer-events-none absolute right-0 bottom-0 left-0 flex items-end justify-between gap-4 bg-gradient-to-t from-black/70 to-transparent p-4 pt-12 sm:p-6 sm:pt-16">
-              <div className="min-w-0 text-white">
-                <div className="text-xs tracking-[0.18em] text-white/60 uppercase">
-                  {formatPhotoDate(photo.creationTime)}
-                </div>
-                {photo.description && (
-                  <div className="mt-1 truncate text-sm text-white/85">{photo.description}</div>
-                )}
+            <div className="pointer-events-none absolute right-0 bottom-0 left-0 grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 pb-5 sm:px-8 sm:pb-8">
+              <div className="text-xs tracking-[0.18em] text-white/60 uppercase">
+                {formatPhotoDate(photo.creationTime)}
               </div>
-              <div className="shrink-0 font-mono text-xs text-white/60 tabular-nums">
+              <div
+                className="pointer-events-auto truncate text-center text-base font-bold text-white/90 select-text sm:text-lg"
+                style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
+              >
+                {photo.description ?? ""}
+              </div>
+              <div className="text-right font-mono text-xs text-white/60 tabular-nums">
                 {index! + 1} / {photos.length}
               </div>
             </div>

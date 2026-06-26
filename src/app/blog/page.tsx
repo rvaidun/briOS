@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
-import { HeartCountBadge } from "@/components/blog/HeartCountBadge";
-import {
-  List,
-  ListItem,
-  ListItemLabel,
-  Section,
-  SectionHeading,
-} from "@/components/shared/ListComponents";
+import { HeartButton } from "@/components/blog/HeartButton";
+import { List, Section, SectionHeading } from "@/components/shared/ListComponents";
 import { TopBar } from "@/components/TopBar";
 import { createMetadata } from "@/lib/metadata";
 import { getAllWritingPosts } from "@/lib/writing";
@@ -48,14 +43,19 @@ export default async function WritingPage() {
               <SectionHeading>{year}</SectionHeading>
               <List>
                 {postsByYear[year]
-                  .filter((post) => post.slug) // Only show posts that have slugs
+                  .filter((post) => post.slug)
                   .map((post) => (
-                    <ListItem key={post.id} href={`/blog/${post.slug}`}>
-                      <ListItemLabel className="line-clamp-none">{post.title}</ListItemLabel>
-                      <span className="ml-auto pl-2">
-                        <HeartCountBadge slug={post.slug as string} />
-                      </span>
-                    </ListItem>
+                    <li key={post.id} className="flex items-center gap-3">
+                      <Link
+                        href={`/blog/${post.slug}`}
+                        className="group/list-item min-w-0 flex-1"
+                      >
+                        <span className="text-primary leading-[1.6] font-medium underline-offset-1 group-hover/list-item:underline">
+                          {post.title}
+                        </span>
+                      </Link>
+                      <HeartButton slug={post.slug as string} size="sm" />
+                    </li>
                   ))}
               </List>
             </Section>

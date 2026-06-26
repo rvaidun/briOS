@@ -43,7 +43,7 @@ const POP_TIMES = [0, 0.25, 0.55, 0.78, 1];
 const POP_DURATION = 0.5;
 
 export function HeartButton({ slug, size = "lg" }: HeartButtonProps) {
-  const { count, addHeart } = useHearts(slug);
+  const { count, addHeart, isLoading } = useHearts(slug);
   const [localCount, setLocalCount] = useState(0);
   const [pop, setPop] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -55,9 +55,10 @@ export function HeartButton({ slug, size = "lg" }: HeartButtonProps) {
   }, [slug]);
 
   const filled = localCount > 0;
+  const displayFilled = !isLoading && filled;
 
   async function handleClick() {
-    if (busy) return;
+    if (busy || filled) return;
     setBusy(true);
     setLocalCount(incrementLocalHeartCount(slug));
     setPop((n) => n + 1);
@@ -74,12 +75,13 @@ export function HeartButton({ slug, size = "lg" }: HeartButtonProps) {
     return (
       <button
         type="button"
-        aria-label="Heart this post"
+        aria-label="Like this post"
         onClick={handleClick}
         className={cn(
-          "group/heart inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm transition-colors",
-          "hover:bg-black/[0.06] dark:hover:bg-white/[0.08]",
-          filled ? "text-red-500" : "text-secondary hover:text-primary",
+          "group/heart inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm tabular-nums transition-colors",
+          displayFilled
+            ? "cursor-default border-red-200 bg-red-50 text-red-500 dark:border-red-800/60 dark:bg-red-950/30 dark:text-red-400"
+            : "border-neutral-200 text-secondary hover:border-neutral-300 hover:text-primary dark:border-neutral-800 dark:hover:border-neutral-700",
         )}
       >
         <motion.span
@@ -89,9 +91,13 @@ export function HeartButton({ slug, size = "lg" }: HeartButtonProps) {
           transition={{ duration: POP_DURATION, times: POP_TIMES, ease: "easeOut" }}
           className="inline-flex"
         >
-          <HeartShape size={16} filled={filled} />
+          <HeartShape size={14} filled={displayFilled} />
         </motion.span>
-        <span className="tabular-nums">{count}</span>
+        {isLoading ? (
+          <span className="h-3.5 w-4 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
+        ) : (
+          <span>{count}</span>
+        )}
       </button>
     );
   }
@@ -104,9 +110,10 @@ export function HeartButton({ slug, size = "lg" }: HeartButtonProps) {
         onClick={handleClick}
         className={cn(
           "group/heart relative inline-flex h-14 w-14 items-center justify-center rounded-full transition-colors",
-          "border border-neutral-200 bg-white hover:bg-neutral-50",
-          "dark:border-neutral-800 dark:bg-neutral-950 dark:hover:bg-neutral-900",
-          filled ? "text-red-500" : "text-secondary hover:text-primary",
+          "border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950",
+          displayFilled
+            ? "cursor-default text-red-500"
+            : "text-secondary hover:bg-neutral-50 hover:text-primary dark:hover:bg-neutral-900",
         )}
       >
         <motion.span
@@ -116,7 +123,7 @@ export function HeartButton({ slug, size = "lg" }: HeartButtonProps) {
           transition={{ duration: POP_DURATION, times: POP_TIMES, ease: "easeOut" }}
           className="inline-flex"
         >
-          <HeartShape size={26} filled={filled} />
+          <HeartShape size={26} filled={displayFilled} />
         </motion.span>
         {!reduceMotion && (
           <AnimatePresence>
@@ -131,9 +138,13 @@ export function HeartButton({ slug, size = "lg" }: HeartButtonProps) {
           </AnimatePresence>
         )}
       </button>
-      <div className="text-tertiary text-sm tabular-nums">
-        {count.toLocaleString()} {count === 1 ? "heart" : "hearts"}
-      </div>
+      {isLoading ? (
+        <div className="h-4 w-14 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700" />
+      ) : (
+        <div className="text-tertiary text-sm tabular-nums">
+          {count.toLocaleString()} {count === 1 ? "heart" : "hearts"}
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { IconProps } from "./types";
 
 export function Heart({ size = 20, ...rest }: IconProps) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...rest} fill="none">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...rest}>
       <path
         fillRule="evenodd"
         stroke="currentColor"

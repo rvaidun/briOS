@@ -13,7 +13,7 @@ import {
   getArtistTimeline,
   getTopAlbumsByArtist,
 } from "@/lib/db/artist-stats";
-import { getTopTracksByArtist, resolveRange } from "@/lib/db/stats";
+import { getTopTracksByArtist } from "@/lib/db/stats";
 import { createMetadata } from "@/lib/metadata";
 
 export const revalidate = 3600;
@@ -43,12 +43,12 @@ export default async function ArtistPage({ params }: { params: Promise<{ artistI
   const overview = await getArtistOverview(artistId);
   if (!overview) notFound();
 
-  const { range } = resolveRange({});
-
+  // Drill-down is intentionally all-time — the point of an artist page is
+  // the lifetime view, not a rolling window.
   const [timeline, heatmap, topTracks, topAlbums] = await Promise.all([
     getArtistTimeline(artistId, "month"),
     getArtistHeatmap(artistId),
-    getTopTracksByArtist(artistId, range, 10),
+    getTopTracksByArtist(artistId, { from: null, to: null }, 10),
     getTopAlbumsByArtist(artistId, 10),
   ]);
 

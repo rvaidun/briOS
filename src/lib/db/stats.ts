@@ -128,6 +128,18 @@ function mapTopTrack(row: TopTrackRow): TopTrack {
   };
 }
 
+// A lateral subquery that reconstructs the per-track artist display string
+// from track_artists — matches the old comma-joined format Spotify shows.
+// Callers alias `t` for tracks.
+const artistDisplaySql = sql`
+  left join lateral (
+    select coalesce(string_agg(a.name, ', ' order by ta.position), '') as names
+    from track_artists ta
+    join artists a on a.id = ta.artist_id
+    where ta.track_id = t.id
+  ) tar on true
+`;
+
 // Filter listens to only those where the given artist is credited on the
 // track. Uses EXISTS on track_artists rather than a join to avoid multiplying
 // listen rows for tracks with more than one credited artist beyond the target.
@@ -140,19 +152,20 @@ export async function getTopTracksByArtist(
     select
       t.id::text as id,
       t.name,
-      t.artist,
+      tar.names as artist,
       t.image_url,
       (t.sources -> 'spotify' ->> 'url') as spotify_url,
       count(*)::int as plays,
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
     join tracks t on t.id = l.track_id
+    ${artistDisplaySql}
     where ${rangePredicate(range)}
       and exists (
         select 1 from track_artists ta
         where ta.track_id = t.id and ta.artist_id = ${artistId}::uuid
       )
-    group by t.id, t.name, t.artist, t.image_url, t.sources
+    group by t.id, t.name, tar.names, t.image_url, t.sources
     order by plays desc, t.name asc
     limit ${limit}
   `);
@@ -164,15 +177,16 @@ export async function getTopTracks(range: DateRange, limit = 10): Promise<TopTra
     select
       t.id::text as id,
       t.name,
-      t.artist,
+      tar.names as artist,
       t.image_url,
       (t.sources -> 'spotify' ->> 'url') as spotify_url,
       count(*)::int as plays,
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
     join tracks t on t.id = l.track_id
+    ${artistDisplaySql}
     where ${rangePredicate(range)}
-    group by t.id, t.name, t.artist, t.image_url, t.sources
+    group by t.id, t.name, tar.names, t.image_url, t.sources
     order by plays desc, t.name asc
     limit ${limit}
   `);
@@ -189,23 +203,17 @@ export type TopAlbum = {
   totalDurationMs: number;
 };
 
-// Falls back to t.album text for rows that haven't been linked to an album row
-// yet (edge case — pre-backfill data or tracks whose Spotify id we couldn't
-// resolve). Once the legacy column is dropped these fallbacks disappear.
 export async function getTopAlbums(range: DateRange, limit = 10): Promise<TopAlbum[]> {
   const r = await db.execute(sql`
     select
       al.id::text as id,
       al.name as album,
-      coalesce(
-        (
-          select a.name from album_artists aa
-          join artists a on a.id = aa.artist_id
-          where aa.album_id = al.id
-          order by aa.position asc
-          limit 1
-        ),
-        max(t.artist)
+      (
+        select a.name from album_artists aa
+        join artists a on a.id = aa.artist_id
+        where aa.album_id = al.id
+        order by aa.position asc
+        limit 1
       ) as artist,
       coalesce(al.image_url, max(t.image_url)) as image_url,
       (al.sources -> 'spotify' ->> 'url') as spotify_url,

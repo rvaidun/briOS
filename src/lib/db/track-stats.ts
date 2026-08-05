@@ -8,7 +8,11 @@ export type TrackOverview = {
   id: string;
   name: string;
   artist: string;
+  // Primary artist for "More by this artist" — the position=0 credit on
+  // this track. Nullable if the track predates track_artists.
+  primaryArtistId: string | null;
   album: string | null;
+  albumId: string | null;
   imageUrl: string | null;
   durationMs: number | null;
   spotifyUrl: string | null;
@@ -24,9 +28,11 @@ export async function getTrackOverview(trackId: string): Promise<TrackOverview |
     select
       t.id::text                                       as id,
       t.name                                           as name,
-      t.artist                                         as artist,
-      t.album                                          as album,
-      t.image_url                                      as image_url,
+      coalesce(tar.names, '')                          as artist,
+      lead.artist_id::text                             as primary_artist_id,
+      al.name                                          as album,
+      al.id::text                                      as album_id,
+      coalesce(al.image_url, t.image_url)              as image_url,
       t.duration_ms                                    as duration_ms,
       (t.sources -> 'spotify' ->> 'url')               as spotify_url,
       coalesce(s.plays, 0)::int                        as plays,
@@ -35,6 +41,19 @@ export async function getTrackOverview(trackId: string): Promise<TrackOverview |
       s.last_played_at                                 as last_played_at,
       coalesce(s.distinct_days, 0)::int                as distinct_days
     from tracks t
+    left join albums al on al.id = t.album_id
+    left join lateral (
+      select coalesce(string_agg(a.name, ', ' order by ta.position), '') as names
+      from track_artists ta
+      join artists a on a.id = ta.artist_id
+      where ta.track_id = t.id
+    ) tar on true
+    left join lateral (
+      select artist_id from track_artists
+      where track_id = t.id
+      order by position asc
+      limit 1
+    ) lead on true
     left join (
       select
         l.track_id,
@@ -55,7 +74,9 @@ export async function getTrackOverview(trackId: string): Promise<TrackOverview |
     id: string;
     name: string;
     artist: string;
+    primary_artist_id: string | null;
     album: string | null;
+    album_id: string | null;
     image_url: string | null;
     duration_ms: number | null;
     spotify_url: string | null;
@@ -69,7 +90,9 @@ export async function getTrackOverview(trackId: string): Promise<TrackOverview |
     id: row.id,
     name: row.name,
     artist: row.artist,
+    primaryArtistId: row.primary_artist_id,
     album: row.album,
+    albumId: row.album_id,
     imageUrl: row.image_url,
     durationMs: row.duration_ms,
     spotifyUrl: row.spotify_url,
@@ -159,7 +182,7 @@ export type MoreByArtistItem = {
 
 export async function getMoreByArtist(
   trackId: string,
-  artist: string,
+  artistId: string,
   limit = 5,
 ): Promise<MoreByArtistItem[]> {
   const r = await db.execute(sql`
@@ -170,8 +193,9 @@ export async function getMoreByArtist(
       (t.sources -> 'spotify' ->> 'url')               as spotify_url,
       count(l.id)::int                                 as plays
     from tracks t
+    join track_artists ta on ta.track_id = t.id
     left join listens l on l.track_id = t.id
-    where t.artist = ${artist} and t.id <> ${trackId}
+    where ta.artist_id = ${artistId}::uuid and t.id <> ${trackId}::uuid
     group by t.id, t.name, t.image_url, t.sources
     order by plays desc, t.name asc
     limit ${limit}

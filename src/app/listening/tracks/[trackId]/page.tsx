@@ -48,7 +48,9 @@ export default async function TrackPage({ params }: { params: Promise<{ trackId:
   const [timeline, heatmap, moreByArtist] = await Promise.all([
     getTrackTimeline(trackId, "month"),
     getTrackHeatmap(trackId),
-    getMoreByArtist(trackId, overview.artist, 5),
+    overview.primaryArtistId
+      ? getMoreByArtist(trackId, overview.primaryArtistId, 5)
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -79,8 +81,12 @@ export default async function TrackPage({ params }: { params: Promise<{ trackId:
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           <Heatmap cells={heatmap} />
-          {moreByArtist.length > 0 && (
-            <MoreByArtist artist={overview.artist} items={moreByArtist} />
+          {moreByArtist.length > 0 && overview.primaryArtistId && (
+            <MoreByArtist
+              artist={overview.artist}
+              artistId={overview.primaryArtistId}
+              items={moreByArtist}
+            />
           )}
         </div>
       </div>
@@ -90,15 +96,23 @@ export default async function TrackPage({ params }: { params: Promise<{ trackId:
 
 function MoreByArtist({
   artist,
+  artistId,
   items,
 }: {
   artist: string;
+  artistId: string;
   items: Awaited<ReturnType<typeof getMoreByArtist>>;
 }) {
   return (
     <div className="border-secondary rounded-md border bg-white p-4 dark:bg-white/5">
       <h3 className="text-tertiary mb-3 text-xs font-medium tracking-wide uppercase">
-        More by {artist}
+        More by{" "}
+        <Link
+          href={`/listening/artists/${artistId}`}
+          className="text-tertiary hover:text-primary hover:underline"
+        >
+          {artist}
+        </Link>
       </h3>
       <ol className="space-y-1">
         {items.map((t, i) => (

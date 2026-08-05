@@ -33,13 +33,10 @@ export type SpotifyAlbumRef = {
 export type SpotifyRecentlyPlayed = {
   trackId: string;
   name: string;
-  // Ordered — index 0 is the lead artist. Kept in this shape for the ingest
-  // to build track_artists rows with correct `position`.
+  // Ordered — index 0 is the lead artist. The ingest uses this to build
+  // track_artists rows with correct `position`.
   artists: SpotifyArtistRef[];
   album: SpotifyAlbumRef;
-  // Comma-joined display string. Kept for the legacy `tracks.artist` column
-  // during the artists/albums migration; drop once that column is dropped.
-  artist: string;
   url: string | undefined;
   image: string | undefined;
   playedAt: Date;
@@ -162,7 +159,6 @@ export async function fetchSpotifyRecentlyPlayed(limit = 50): Promise<SpotifyRec
       image: item.track.album.images[0]?.url,
       releaseDate: item.track.album.release_date,
     },
-    artist: item.track.artists.map((a) => a.name).join(", "),
     url: item.track.external_urls?.spotify,
     image: item.track.album.images[0]?.url,
     playedAt: new Date(item.played_at),

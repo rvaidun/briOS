@@ -22,16 +22,13 @@ export type ResolveTrackAlbumInput = {
 export type ResolveTrackInput = {
   isrc: string | null;
   name: string;
-  artist: string;
-  album: string | null;
   imageUrl: string | null;
   durationMs: number | null;
   source: SourceKey;
   sourceTrackId: string;
   url: string | null;
   // Optional structured artist/album inputs. When present, the resolver also
-  // links track_artists rows and sets tracks.album_id. Passed by the live
-  // sync since June 2026 — older callers omit them.
+  // links track_artists rows and sets tracks.album_id.
   artists?: ResolveTrackArtistInput[];
   albumRef?: ResolveTrackAlbumInput | null;
 };
@@ -51,10 +48,11 @@ function buildSourceEntry(input: ResolveTrackInput): SourceEntry {
  *
  * Match order:
  *  1. by ISRC, if the play has one
- *  2. by case-insensitive (name, artist) among rows that have no ISRC
+ *  2. by sources->'spotify'->>'track_id' among rows that have no ISRC
+ *     (dedup within a source before falling through to INSERT)
  *
- * If an existing row matches by (name, artist) but had no ISRC, and the new
- * play has one, the ISRC is filled in.
+ * If an existing row matches by source track id but had no ISRC, and the
+ * new play has one, the ISRC is filled in.
  *
  * Not race-safe under concurrent writers, but the cron is single-threaded.
  */
@@ -68,9 +66,7 @@ export async function resolveTrackId(input: ResolveTrackInput): Promise<string> 
       `)
     : await db.execute(sql`
         SELECT id, isrc FROM tracks
-        WHERE isrc IS NULL
-          AND lower(name) = lower(${input.name})
-          AND lower(artist) = lower(${input.artist})
+        WHERE sources -> ${input.source} ->> 'track_id' = ${input.sourceTrackId}
         LIMIT 1
       `);
 
@@ -97,12 +93,10 @@ export async function resolveTrackId(input: ResolveTrackInput): Promise<string> 
     trackId = row.id;
   } else {
     const inserted = await db.execute(sql`
-      INSERT INTO tracks (isrc, name, artist, album, image_url, duration_ms, sources)
+      INSERT INTO tracks (isrc, name, image_url, duration_ms, sources)
       VALUES (
         ${input.isrc},
         ${input.name},
-        ${input.artist},
-        ${input.album},
         ${input.imageUrl},
         ${input.durationMs},
         ${sourceJson}::jsonb

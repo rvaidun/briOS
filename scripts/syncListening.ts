@@ -24,8 +24,6 @@ type IncomingPlay = {
   sourceTrackId: string;
   isrc: string | null;
   name: string;
-  artist: string;
-  album: string | null;
   imageUrl: string | null;
   url: string | null;
   playedAt: Date;
@@ -42,8 +40,6 @@ async function resolvePlays(plays: IncomingPlay[]): Promise<ResolvedPlay[]> {
     const trackId = await resolveTrackId({
       isrc: p.isrc,
       name: p.name,
-      artist: p.artist,
-      album: p.album,
       imageUrl: p.imageUrl,
       durationMs: p.durationMs,
       source: p.source,
@@ -113,8 +109,6 @@ async function syncSpotify(): Promise<{ fetched: number; inserted: number }> {
     sourceTrackId: t.trackId,
     isrc: t.isrc ?? null,
     name: t.name,
-    artist: t.artist,
-    album: t.album.name,
     imageUrl: t.image ?? null,
     url: t.url ?? null,
     playedAt: t.playedAt,

@@ -52,12 +52,19 @@ export async function getListens(opts: { cursor?: string; limit?: number }): Pro
       l.source                                         AS source,
       l.played_at                                      AS played_at,
       t.name                                           AS name,
-      t.artist                                         AS artist,
-      t.album                                          AS album,
-      t.image_url                                      AS image,
+      COALESCE(tar.names, '')                          AS artist,
+      al.name                                          AS album,
+      COALESCE(al.image_url, t.image_url)              AS image,
       (t.sources -> 'spotify' ->> 'url')               AS spotify_url
     FROM listens l
     JOIN tracks t ON t.id = l.track_id
+    LEFT JOIN albums al ON al.id = t.album_id
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(string_agg(a.name, ', ' ORDER BY ta.position), '') AS names
+      FROM track_artists ta
+      JOIN artists a ON a.id = ta.artist_id
+      WHERE ta.track_id = t.id
+    ) tar ON true
     WHERE ${cursorPredicate}
     ORDER BY l.played_at DESC, l.id DESC
     LIMIT ${limit + 1}

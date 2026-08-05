@@ -103,8 +103,9 @@ export const albums = pgTable(
 export type Album = typeof albums.$inferSelect;
 export type NewAlbum = typeof albums.$inferInsert;
 
-// Canonical per-recording row. One row per ISRC (when known) or per
-// case-insensitive (name, artist) when ISRC is missing.
+// Canonical per-recording row. One row per ISRC when known; otherwise one
+// row per Spotify catalog id (see the tracks_spotify_track_id_uniq partial
+// index declared raw in drizzle/0002).
 export const tracks = pgTable(
   "tracks",
   {
@@ -113,11 +114,6 @@ export const tracks = pgTable(
       .default(sql`gen_random_uuid()`),
     isrc: text("isrc"),
     name: text("name").notNull(),
-    // Legacy display strings. Kept during the artists/albums migration so
-    // pre-cutover reads keep working; will be dropped once stats queries move
-    // to track_artists / albums.
-    artist: text("artist").notNull(),
-    album: text("album"),
     imageUrl: text("image_url"),
     durationMs: integer("duration_ms"),
     albumId: uuid("album_id").references(() => albums.id, { onDelete: "set null" }),
@@ -134,7 +130,7 @@ export const tracks = pgTable(
   },
   (t) => [
     uniqueIndex("tracks_isrc_uniq").on(t.isrc),
-    index("tracks_artist_name_idx").on(t.artist, t.name),
+    index("tracks_name_idx").on(t.name),
     index("tracks_album_id_idx").on(t.albumId),
   ],
 );

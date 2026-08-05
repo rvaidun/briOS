@@ -1,9 +1,11 @@
 import { sql } from "drizzle-orm";
 import {
+  date,
   index,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -23,6 +25,84 @@ export type SourceEntry = {
 
 export type TrackSources = Partial<Record<SourceKey, SourceEntry>>;
 
+// Per-source metadata for an artist. Same shape as tracks but keyed by
+// `artist_id` because Spotify uses distinct id namespaces per entity type.
+export type ArtistSourceEntry = {
+  artist_id?: string;
+  url?: string;
+  resolved_at: string;
+};
+
+export type ArtistSources = Partial<Record<SourceKey, ArtistSourceEntry>>;
+
+export type AlbumSourceEntry = {
+  album_id?: string;
+  url?: string;
+  resolved_at: string;
+};
+
+export type AlbumSources = Partial<Record<SourceKey, AlbumSourceEntry>>;
+
+// Canonical per-artist row. One row per Spotify artist_id when known; falls
+// back to lower(name) for entries with no source id (rare — local files,
+// broken metadata).
+export const artists = pgTable(
+  "artists",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: text("name").notNull(),
+    imageUrl: text("image_url"),
+    sources: jsonb("sources")
+      .$type<ArtistSources>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [
+    index("artists_name_idx").on(t.name),
+  ],
+);
+
+export type Artist = typeof artists.$inferSelect;
+export type NewArtist = typeof artists.$inferInsert;
+
+// Canonical per-album row. Deluxe / anniversary editions are separate rows —
+// they have distinct Spotify album_ids, and merging them is out of scope.
+export const albums = pgTable(
+  "albums",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: text("name").notNull(),
+    imageUrl: text("image_url"),
+    releaseDate: date("release_date"),
+    sources: jsonb("sources")
+      .$type<AlbumSources>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [
+    index("albums_name_idx").on(t.name),
+  ],
+);
+
+export type Album = typeof albums.$inferSelect;
+export type NewAlbum = typeof albums.$inferInsert;
+
 // Canonical per-recording row. One row per ISRC (when known) or per
 // case-insensitive (name, artist) when ISRC is missing.
 export const tracks = pgTable(
@@ -33,10 +113,14 @@ export const tracks = pgTable(
       .default(sql`gen_random_uuid()`),
     isrc: text("isrc"),
     name: text("name").notNull(),
+    // Legacy display strings. Kept during the artists/albums migration so
+    // pre-cutover reads keep working; will be dropped once stats queries move
+    // to track_artists / albums.
     artist: text("artist").notNull(),
     album: text("album"),
     imageUrl: text("image_url"),
     durationMs: integer("duration_ms"),
+    albumId: uuid("album_id").references(() => albums.id, { onDelete: "set null" }),
     sources: jsonb("sources")
       .$type<TrackSources>()
       .notNull()
@@ -51,11 +135,57 @@ export const tracks = pgTable(
   (t) => [
     uniqueIndex("tracks_isrc_uniq").on(t.isrc),
     index("tracks_artist_name_idx").on(t.artist, t.name),
+    index("tracks_album_id_idx").on(t.albumId),
   ],
 );
 
 export type Track = typeof tracks.$inferSelect;
 export type NewTrack = typeof tracks.$inferInsert;
+
+// Many-to-many track ↔ artist. `position` = 0 is the lead artist; features
+// climb from 1. Delete cascades from both sides so orphan links can't outlive
+// the entities they reference.
+export const trackArtists = pgTable(
+  "track_artists",
+  {
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    artistId: uuid("artist_id")
+      .notNull()
+      .references(() => artists.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.trackId, t.artistId] }),
+    index("track_artists_artist_id_idx").on(t.artistId),
+  ],
+);
+
+export type TrackArtist = typeof trackArtists.$inferSelect;
+export type NewTrackArtist = typeof trackArtists.$inferInsert;
+
+// Many-to-many album ↔ artist. Compilations and splits carry multiple
+// artists; `position = 0` is the primary billing.
+export const albumArtists = pgTable(
+  "album_artists",
+  {
+    albumId: uuid("album_id")
+      .notNull()
+      .references(() => albums.id, { onDelete: "cascade" }),
+    artistId: uuid("artist_id")
+      .notNull()
+      .references(() => artists.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.albumId, t.artistId] }),
+    index("album_artists_artist_id_idx").on(t.artistId),
+  ],
+);
+
+export type AlbumArtist = typeof albumArtists.$inferSelect;
+export type NewAlbumArtist = typeof albumArtists.$inferInsert;
 
 export const listens = pgTable(
   "listens",

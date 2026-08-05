@@ -19,7 +19,7 @@ type Props = {
 };
 
 export function TopArtistsList({ artists, rangeQuery }: Props) {
-  const [openArtist, setOpenArtist] = useState<string | null>(null);
+  const [openArtistId, setOpenArtistId] = useState<string | null>(null);
   const max = artists[0]?.plays ?? 1;
 
   return (
@@ -33,36 +33,46 @@ export function TopArtistsList({ artists, rangeQuery }: Props) {
         <ol className="space-y-1">
           {artists.map((a, i) => {
             const pct = Math.max((a.plays / max) * 100, 4);
-            const isOpen = openArtist === a.artist;
+            const isOpen = openArtistId === a.id;
             return (
-              <li key={`${i}-${a.artist}`}>
+              <li key={a.id}>
                 <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setOpenArtist(isOpen ? null : a.artist)}
-                    aria-expanded={isOpen}
-                    className="hover:bg-secondary/60 relative flex w-full items-center gap-3 overflow-hidden rounded px-2 py-1.5 text-left"
-                  >
-                    <span className="text-quaternary w-4 flex-none text-right text-xs tabular-nums">
-                      {i + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-primary truncate text-sm font-medium">{a.artist}</div>
-                    </div>
-                    <span className="text-tertiary flex-none text-xs tabular-nums">
-                      {a.plays.toLocaleString()}
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={cn(
-                        "text-tertiary flex-none transition-transform duration-200",
-                        isOpen && "rotate-180",
-                      )}
-                    />
-                  </button>
+                  <div className="hover:bg-secondary/60 relative flex w-full items-center gap-1 overflow-hidden rounded pr-2">
+                    <Link
+                      href={`/listening/artists/${a.id}`}
+                      className="flex min-w-0 flex-1 items-center gap-3 px-2 py-1.5"
+                    >
+                      <span className="text-quaternary w-4 flex-none text-right text-xs tabular-nums">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-primary truncate text-sm font-medium">
+                          {a.artist}
+                        </div>
+                      </div>
+                      <span className="text-tertiary flex-none text-xs tabular-nums">
+                        {a.plays.toLocaleString()}
+                      </span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setOpenArtistId(isOpen ? null : a.id)}
+                      aria-expanded={isOpen}
+                      aria-label={isOpen ? "Collapse tracks" : "Expand tracks"}
+                      className="hover:bg-secondary/60 flex-none rounded p-1"
+                    >
+                      <ChevronDown
+                        size={14}
+                        className={cn(
+                          "text-tertiary transition-transform duration-200",
+                          isOpen && "rotate-180",
+                        )}
+                      />
+                    </button>
+                  </div>
                   <div
                     aria-hidden
-                    className="bg-secondary/40 absolute inset-0 -z-10 rounded"
+                    className="bg-secondary/40 pointer-events-none absolute inset-0 -z-10 rounded"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -73,7 +83,7 @@ export function TopArtistsList({ artists, rangeQuery }: Props) {
                   )}
                 >
                   <div className="min-h-0 overflow-hidden">
-                    <ArtistTracks artist={a.artist} rangeQuery={rangeQuery} enabled={isOpen} />
+                    <ArtistTracks artistId={a.id} rangeQuery={rangeQuery} enabled={isOpen} />
                   </div>
                 </div>
               </li>
@@ -86,16 +96,18 @@ export function TopArtistsList({ artists, rangeQuery }: Props) {
 }
 
 function ArtistTracks({
-  artist,
+  artistId,
   rangeQuery,
   enabled,
 }: {
-  artist: string;
+  artistId: string;
   rangeQuery: string;
   enabled: boolean;
 }) {
   const { data, error, isLoading } = useSWR<{ tracks: TopTrack[] }>(
-    enabled ? `/api/listening/top-tracks?artist=${encodeURIComponent(artist)}&${rangeQuery}` : null,
+    enabled
+      ? `/api/listening/top-tracks?artistId=${encodeURIComponent(artistId)}&${rangeQuery}`
+      : null,
     fetcher,
     { revalidateIfStale: false, revalidateOnFocus: false, revalidateOnReconnect: false },
   );

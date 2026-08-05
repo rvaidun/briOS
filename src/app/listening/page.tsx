@@ -99,6 +99,8 @@ export default async function ListeningPage({
             primary: a.album,
             secondary: a.artist,
             imageUrl: a.imageUrl,
+            spotifyUrl: a.spotifyUrl,
+            href: `/listening/albums/${a.id}`,
             plays: a.plays,
           }))}
         />

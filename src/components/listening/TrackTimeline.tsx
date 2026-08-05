@@ -11,7 +11,9 @@ import { cn } from "@/lib/utils";
 const SPOTIFY = "rgb(30 215 96)";
 
 type Props = {
-  trackId: string;
+  // Base endpoint path — `?g=<granularity>` is appended by this component.
+  // e.g. `/api/listening/tracks/[id]/timeline`, `/api/listening/artists/[id]/timeline`.
+  endpoint: string;
   initialBuckets: TimelineBucket[];
   initialGranularity: Granularity;
 };
@@ -22,13 +24,11 @@ const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
   { value: "year", label: "Year" },
 ];
 
-export function TrackTimeline({ trackId, initialBuckets, initialGranularity }: Props) {
+export function TrackTimeline({ endpoint, initialBuckets, initialGranularity }: Props) {
   const [granularity, setGranularity] = useState<Granularity>(initialGranularity);
 
   const { data, isLoading } = useSWR<{ buckets: TimelineBucket[] }>(
-    granularity === initialGranularity
-      ? null
-      : `/api/listening/tracks/${trackId}/timeline?g=${granularity}`,
+    granularity === initialGranularity ? null : `${endpoint}?g=${granularity}`,
     fetcher,
     { revalidateIfStale: false, revalidateOnFocus: false, revalidateOnReconnect: false },
   );

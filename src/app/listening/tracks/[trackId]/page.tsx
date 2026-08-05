@@ -71,7 +71,11 @@ export default async function TrackPage({ params }: { params: Promise<{ trackId:
 
         <TrackKpis overview={overview} />
 
-        <TrackTimeline trackId={trackId} initialBuckets={timeline} initialGranularity="month" />
+        <TrackTimeline
+          endpoint={`/api/listening/tracks/${trackId}/timeline`}
+          initialBuckets={timeline}
+          initialGranularity="month"
+        />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
           <Heatmap cells={heatmap} />

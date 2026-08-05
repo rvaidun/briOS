@@ -51,23 +51,46 @@ export async function getSummary(range: DateRange): Promise<Summary> {
   };
 }
 
-export type TopArtist = { artist: string; plays: number; totalDurationMs: number };
+export type TopArtist = {
+  id: string;
+  artist: string;
+  imageUrl: string | null;
+  plays: number;
+  totalDurationMs: number;
+};
 
+// A listen on a collab counts for every credited artist — matches how Spotify
+// attributes plays. The join on track_artists intentionally multiplies rows;
+// the group-by rolls them back up per artist.
 export async function getTopArtists(range: DateRange, limit = 10): Promise<TopArtist[]> {
   const r = await db.execute(sql`
     select
-      t.artist,
+      a.id::text as id,
+      a.name as artist,
+      a.image_url as image_url,
       count(*)::int as plays,
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
     join tracks t on t.id = l.track_id
+    join track_artists ta on ta.track_id = t.id
+    join artists a on a.id = ta.artist_id
     where ${rangePredicate(range)}
-    group by t.artist
-    order by plays desc, t.artist asc
+    group by a.id, a.name, a.image_url
+    order by plays desc, a.name asc
     limit ${limit}
   `);
-  return (r.rows as { artist: string; plays: number; total_ms: string }[]).map((row) => ({
+  return (
+    r.rows as {
+      id: string;
+      artist: string;
+      image_url: string | null;
+      plays: number;
+      total_ms: string;
+    }[]
+  ).map((row) => ({
+    id: row.id,
     artist: row.artist,
+    imageUrl: row.image_url,
     plays: row.plays,
     totalDurationMs: Number(row.total_ms),
   }));
@@ -105,8 +128,11 @@ function mapTopTrack(row: TopTrackRow): TopTrack {
   };
 }
 
+// Filter listens to only those where the given artist is credited on the
+// track. Uses EXISTS on track_artists rather than a join to avoid multiplying
+// listen rows for tracks with more than one credited artist beyond the target.
 export async function getTopTracksByArtist(
-  artist: string,
+  artistId: string,
   range: DateRange,
   limit = 10,
 ): Promise<TopTrack[]> {
@@ -121,7 +147,11 @@ export async function getTopTracksByArtist(
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
     join tracks t on t.id = l.track_id
-    where ${rangePredicate(range)} and t.artist = ${artist}
+    where ${rangePredicate(range)}
+      and exists (
+        select 1 from track_artists ta
+        where ta.track_id = t.id and ta.artist_id = ${artistId}::uuid
+      )
     group by t.id, t.name, t.artist, t.image_url, t.sources
     order by plays desc, t.name asc
     limit ${limit}
@@ -150,40 +180,61 @@ export async function getTopTracks(range: DateRange, limit = 10): Promise<TopTra
 }
 
 export type TopAlbum = {
+  id: string;
   album: string;
   artist: string;
   imageUrl: string | null;
+  spotifyUrl: string | null;
   plays: number;
   totalDurationMs: number;
 };
 
+// Falls back to t.album text for rows that haven't been linked to an album row
+// yet (edge case — pre-backfill data or tracks whose Spotify id we couldn't
+// resolve). Once the legacy column is dropped these fallbacks disappear.
 export async function getTopAlbums(range: DateRange, limit = 10): Promise<TopAlbum[]> {
   const r = await db.execute(sql`
     select
-      t.album,
-      max(t.artist) as artist,
-      max(t.image_url) as image_url,
+      al.id::text as id,
+      al.name as album,
+      coalesce(
+        (
+          select a.name from album_artists aa
+          join artists a on a.id = aa.artist_id
+          where aa.album_id = al.id
+          order by aa.position asc
+          limit 1
+        ),
+        max(t.artist)
+      ) as artist,
+      coalesce(al.image_url, max(t.image_url)) as image_url,
+      (al.sources -> 'spotify' ->> 'url') as spotify_url,
       count(*)::int as plays,
       coalesce(sum(t.duration_ms), 0)::bigint as total_ms
     from listens l
     join tracks t on t.id = l.track_id
-    where ${rangePredicate(range)} and t.album is not null and t.album <> ''
-    group by t.album
-    order by plays desc, t.album asc
+    join albums al on al.id = t.album_id
+    where ${rangePredicate(range)}
+    group by al.id, al.name, al.image_url, al.sources
+    order by plays desc, al.name asc
     limit ${limit}
   `);
   return (
     r.rows as {
+      id: string;
       album: string;
       artist: string;
       image_url: string | null;
+      spotify_url: string | null;
       plays: number;
       total_ms: string;
     }[]
   ).map((row) => ({
+    id: row.id,
     album: row.album,
     artist: row.artist,
     imageUrl: row.image_url,
+    spotifyUrl: row.spotify_url,
     plays: row.plays,
     totalDurationMs: Number(row.total_ms),
   }));

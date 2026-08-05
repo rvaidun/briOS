@@ -7,9 +7,16 @@
  * Usage: bun scripts/syncListening.ts
  * Requires: DATABASE_URL, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET
  */
+import { sql } from "drizzle-orm";
+
+import { resolveArtistId } from "../src/lib/db/artists";
 import { db } from "../src/lib/db/client";
 import { listens, type NewListen, type SourceKey } from "../src/lib/db/schema";
-import { resolveTrackId } from "../src/lib/db/tracks";
+import {
+  type ResolveTrackAlbumInput,
+  type ResolveTrackArtistInput,
+  resolveTrackId,
+} from "../src/lib/db/tracks";
 import { fetchSpotifyRecentlyPlayed } from "../src/lib/spotify";
 
 type IncomingPlay = {
@@ -23,6 +30,8 @@ type IncomingPlay = {
   url: string | null;
   playedAt: Date;
   durationMs: number | null;
+  artists: ResolveTrackArtistInput[];
+  albumRef: ResolveTrackAlbumInput | null;
 };
 
 type ResolvedPlay = IncomingPlay & { trackId: string };
@@ -40,10 +49,44 @@ async function resolvePlays(plays: IncomingPlay[]): Promise<ResolvedPlay[]> {
       source: p.source,
       sourceTrackId: p.sourceTrackId,
       url: p.url,
+      artists: p.artists,
+      albumRef: p.albumRef,
     });
     out.push({ ...p, trackId });
+    // Link the album's own artists too. Necessary for compilations where the
+    // album's artist list isn't captured by track_artists alone.
+    if (p.albumRef?.sourceAlbumId && p.artists.length > 0) {
+      await linkAlbumArtists(p.source, p.albumRef.sourceAlbumId, p.artists);
+    }
   }
   return out;
+}
+
+async function linkAlbumArtists(
+  source: SourceKey,
+  sourceAlbumId: string,
+  artistsIn: ResolveTrackArtistInput[],
+): Promise<void> {
+  const found = await db.execute(sql`
+    SELECT id FROM albums WHERE sources -> ${source} ->> 'album_id' = ${sourceAlbumId} LIMIT 1
+  `);
+  if (found.rows.length === 0) return;
+  const albumId = (found.rows[0] as { id: string }).id;
+  for (let i = 0; i < artistsIn.length; i++) {
+    const a = artistsIn[i]!;
+    const artistId = await resolveArtistId({
+      name: a.name,
+      imageUrl: null,
+      source,
+      sourceArtistId: a.sourceArtistId,
+      url: a.url,
+    });
+    await db.execute(sql`
+      INSERT INTO album_artists (album_id, artist_id, position)
+      VALUES (${albumId}::uuid, ${artistId}::uuid, ${i})
+      ON CONFLICT (album_id, artist_id) DO NOTHING
+    `);
+  }
 }
 
 async function insertListens(plays: ResolvedPlay[]): Promise<number> {
@@ -71,11 +114,23 @@ async function syncSpotify(): Promise<{ fetched: number; inserted: number }> {
     isrc: t.isrc ?? null,
     name: t.name,
     artist: t.artist,
-    album: t.album,
+    album: t.album.name,
     imageUrl: t.image ?? null,
     url: t.url ?? null,
     playedAt: t.playedAt,
     durationMs: t.durationMs,
+    artists: t.artists.map((a) => ({
+      name: a.name,
+      sourceArtistId: a.id,
+      url: `https://open.spotify.com/artist/${a.id}`,
+    })),
+    albumRef: {
+      name: t.album.name,
+      sourceAlbumId: t.album.id,
+      imageUrl: t.album.image ?? null,
+      releaseDate: t.album.releaseDate ?? null,
+      url: `https://open.spotify.com/album/${t.album.id}`,
+    },
   }));
 
   const resolved = await resolvePlays(plays);

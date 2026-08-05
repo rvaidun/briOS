@@ -23,8 +23,12 @@ function buildSourceEntry(input: ResolveAlbumInput): AlbumSourceEntry {
 // "2012-03-14" depending on how much the label filed. Postgres DATE requires
 // a full date, so promote lower-precision values to Jan 1 / month 1. Callers
 // who need to render the original precision should store it separately.
+// Year 0 ("0000-*") is out of range in Postgres and shows up on malformed
+// Spotify catalog rows — treat as unknown.
 function normalizeReleaseDate(raw: string | null): string | null {
   if (!raw) return null;
+  const yearMatch = raw.match(/^(\d{4})/);
+  if (!yearMatch || yearMatch[1] === "0000") return null;
   if (/^\d{4}$/.test(raw)) return `${raw}-01-01`;
   if (/^\d{4}-\d{2}$/.test(raw)) return `${raw}-01`;
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;

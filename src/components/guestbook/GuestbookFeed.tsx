@@ -37,8 +37,24 @@ export function GuestbookFeed({
       computeScatter(
         shown.map((e) => e.id),
         isSmall
-          ? { cols: 2, padXPct: 4, padTopPct: 6, padBottomPct: 45, slotJitter: 0.55 }
-          : { cols: 4, padXPct: 4, padTopPct: 8, padBottomPct: 26, slotJitter: 0.75 },
+          ? {
+              cols: 2,
+              padXPct: 4,
+              padTopPct: 6,
+              padBottomPct: 45,
+              slotJitter: 0.55,
+              cardHalfXPct: 22, // ~160px card on ~360px mat
+              cardHalfYPct: 15,
+            }
+          : {
+              cols: 4,
+              padXPct: 4,
+              padTopPct: 8,
+              padBottomPct: 26,
+              slotJitter: 0.75,
+              cardHalfXPct: 11, // ~192px card on ~900px mat
+              cardHalfYPct: 22,
+            },
       ),
     [shown, isSmall],
   );

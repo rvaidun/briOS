@@ -34,6 +34,10 @@ export function computeScatter(
     padTopPct?: number;
     padBottomPct?: number;
     slotJitter?: number;
+    // Estimated half-size of a polaroid as % of the mat, so the clamp keeps
+    // cards fully on-screen even when the seeded jitter is at its extreme.
+    cardHalfXPct?: number;
+    cardHalfYPct?: number;
   } = {},
 ): Record<string, Scatter> {
   const cols = opts.cols ?? 5;
@@ -44,6 +48,8 @@ export function computeScatter(
   const padTop = opts.padTopPct ?? 22;
   const padBottom = opts.padBottomPct ?? 28;
   const jitter = opts.slotJitter ?? 0.35;
+  const halfX = opts.cardHalfXPct ?? 12;
+  const halfY = opts.cardHalfYPct ?? 20;
   const rows = Math.max(1, Math.ceil(ids.length / cols));
   const cellW = (100 - padX * 2) / cols;
   const cellH = (100 - padTop - padBottom) / rows;
@@ -55,11 +61,17 @@ export function computeScatter(
     const jx = (r() - 0.5) * 2 * jitter * cellW;
     const jy = (r() - 0.5) * 2 * jitter * cellH;
     const rot = (r() - 0.5) * 28;
+    const rawX = padX + col * cellW + cellW / 2 + jx;
+    const rawY = padTop + row * cellH + cellH / 2 + jy;
     out[id] = {
-      xPct: padX + col * cellW + cellW / 2 + jx,
-      yPct: padTop + row * cellH + cellH / 2 + jy,
+      xPct: clamp(rawX, halfX, 100 - halfX),
+      yPct: clamp(rawY, halfY, 100 - halfY),
       rotDeg: rot,
     };
   });
   return out;
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
 }

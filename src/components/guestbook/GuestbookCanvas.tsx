@@ -1,7 +1,15 @@
 "use client";
 
 import { getStroke } from "perfect-freehand";
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -86,6 +94,22 @@ export const GuestbookCanvas = forwardRef<GuestbookCanvasHandle, { className?: s
       }
     }, []);
 
+    // iOS Safari sometimes begins page scroll before honoring `touch-action:
+    // none`. Attaching a non-passive touchmove that preventDefaults kills the
+    // pull-to-refresh / rubber-band behavior while a stroke is happening.
+    const svgRef = useRef<SVGSVGElement>(null);
+    useEffect(() => {
+      const el = svgRef.current;
+      if (!el) return;
+      const prevent = (e: TouchEvent) => e.preventDefault();
+      el.addEventListener("touchstart", prevent, { passive: false });
+      el.addEventListener("touchmove", prevent, { passive: false });
+      return () => {
+        el.removeEventListener("touchstart", prevent);
+        el.removeEventListener("touchmove", prevent);
+      };
+    }, []);
+
     const undo = () => setStrokes((s) => s.slice(0, -1));
     const clear = () => {
       currentRef.current = null;
@@ -96,11 +120,13 @@ export const GuestbookCanvas = forwardRef<GuestbookCanvasHandle, { className?: s
     return (
       <div className={cn("flex flex-col gap-2", className)}>
         <svg
+          ref={svgRef}
           role="img"
           aria-label="Draw here"
           viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
           preserveAspectRatio="xMidYMid meet"
-          className="border-secondary text-primary aspect-square w-full touch-none rounded-md border bg-white select-none"
+          style={{ touchAction: "none" }}
+          className="border-secondary text-primary aspect-square w-full overscroll-none rounded-md border bg-white select-none"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}

@@ -28,6 +28,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `KV_REST_API_URL` / `KV_REST_API_TOKEN` - Upstash Redis (Vercel KV) credentials used by the blog hearts counter (`src/lib/hearts.ts`). Missing values cause hearts to gracefully degrade to 0.
   - `DATABASE_URL` - Neon Postgres connection string used by the listening history (`src/lib/db/`). Required for `/listening` reads and the listening sync cron.
   - `LOCAL_TZ` - Timezone for hour-of-day listening analytics (default `America/Los_Angeles`). Used by `src/lib/db/stats.ts`.
+  - `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` - Spotify app credentials used by both the listening cron (refresh flow) and the web re-auth routes.
+  - `SPOTIFY_OWNER_USER_ID` - Your Spotify user id (from `GET /v1/me`). The `/api/auth/spotify/callback` route refuses to save tokens unless the freshly-authorized account matches this id, so even a leaked re-auth link can't poison the listening pipeline.
+  - `SPOTIFY_REAUTH_SECRET` - Required `?key=` query param on `/api/auth/spotify/start`. Long random string; the cron embeds it in the Discord re-auth link.
+  - `SPOTIFY_REDIRECT_URI` - Optional override. When unset, the start/callback routes derive the redirect URI from the request origin (`<origin>/api/auth/spotify/callback`). The production URI must be registered on the Spotify app dashboard.
+  - `GUESTBOOK_IP_SALT` - Optional random string used to SHA-256 hash submitter IPs on `/api/guestbook`. Enables bulk-deleting abuse by IP without storing raw addresses. Unset ⇒ no hashing (rows store `null`).
+  - `GUESTBOOK_ADMIN_PASSWORD` - Password for `/guestbook/admin`. Unset ⇒ the admin page is permanently locked (no login possible). Rotating this value invalidates every existing admin session.
 
 ## Architecture Overview
 

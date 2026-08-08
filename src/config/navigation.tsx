@@ -1,6 +1,7 @@
 import React from "react";
 
 import { FileText2 } from "@/components/icons/FileText2";
+import { FountainPen } from "@/components/icons/FountainPen";
 import { Headphones3 } from "@/components/icons/Headphones3";
 import { Home } from "@/components/icons/Home";
 import { Photo } from "@/components/icons/Photo";
@@ -64,6 +65,16 @@ export const navigationItems: NavigationItem[] = [
     icon: Photo,
     keywords: ["photos", "pictures", "album", "gallery"],
     isActive: (pathname) => pathname === "/photos",
+    section: "main",
+  },
+
+  {
+    id: "guestbook",
+    label: "Guestbook",
+    href: "/guestbook",
+    icon: FountainPen,
+    keywords: ["guestbook", "notes", "visitors", "sign", "draw"],
+    isActive: (pathname) => pathname === "/guestbook",
     section: "main",
   },
 ];

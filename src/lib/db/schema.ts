@@ -208,6 +208,29 @@ export const listens = pgTable(
 export type Listen = typeof listens.$inferSelect;
 export type NewListen = typeof listens.$inferInsert;
 
+// Visitor-signed guestbook entries. `drawing_svg` is a sanitized SVG string
+// (paths only — script/handler/href stripped in the API before insert), so
+// pages can safely render it via dangerouslySetInnerHTML. `ip_hash` lets us
+// bulk-delete abuse without ever storing raw addresses.
+export const guestbookEntries = pgTable(
+  "guestbook_entries",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: text("name").notNull(),
+    drawingSvg: text("drawing_svg").notNull(),
+    ipHash: text("ip_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [index("guestbook_entries_created_at_idx").on(t.createdAt.desc())],
+);
+
+export type GuestbookEntry = typeof guestbookEntries.$inferSelect;
+export type NewGuestbookEntry = typeof guestbookEntries.$inferInsert;
+
 // One row per OAuth source. Spotify rotates refresh tokens periodically; we
 // store the latest pair here so the cron container is stateless.
 export const oauthTokens = pgTable("oauth_tokens", {

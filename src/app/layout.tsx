@@ -1,6 +1,7 @@
 import "./globals.css";
 
 import { Analytics } from "@vercel/analytics/next";
+import { BotIdClient } from "botid/client";
 import type { Metadata } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
 import { PropsWithChildren } from "react";
@@ -38,6 +39,12 @@ export default function RootLayout({ children }: PropsWithChildren) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="theme-color" content="#fff" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="rgb(10, 10, 10)" media="(prefers-color-scheme: dark)" />
+        {/* BotID's client script requires the Vercel-hosted challenge endpoint,
+            which 404s in local dev and leaves fetches hanging inside the wrapper.
+            Only mount in production; the server's checkBotId() auto-bypasses in dev. */}
+        {process.env.NODE_ENV === "production" && (
+          <BotIdClient protect={[{ path: "/api/guestbook", method: "POST" }]} />
+        )}
       </head>
       <body className={cn(inter.variable, ptSerif.variable)}>
         <Providers>

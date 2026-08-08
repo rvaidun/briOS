@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { checkBotId } from "botid/server";
 import { NextResponse } from "next/server";
 
 import { errorResponse } from "@/lib/api-utils";
@@ -70,9 +69,6 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const verification = await checkBotId();
-    if (verification.isBot) return errorResponse("Bot detected", 403);
-
     const ip = getClientIp(request);
     if (ratelimit) {
       const { success } = await ratelimit.limit(ip);

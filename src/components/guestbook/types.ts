@@ -4,4 +4,5 @@ export type GuestbookEntryView = {
   note: string | null;
   drawingSvg: string;
   createdAt: string;
+  hearts?: number;
 };

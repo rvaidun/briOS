@@ -4,6 +4,7 @@ import { GuestbookFeed } from "@/components/guestbook/GuestbookFeed";
 import type { GuestbookEntryView } from "@/components/guestbook/types";
 import { TopBar } from "@/components/TopBar";
 import { countGuestbookEntries, listGuestbookEntries } from "@/lib/db/guestbook";
+import { getHeartCounts } from "@/lib/hearts";
 import { createMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
@@ -19,12 +20,16 @@ export default async function GuestbookPage() {
     listGuestbookEntries(24).catch(() => []),
     countGuestbookEntries().catch(() => 0),
   ]);
+  const hearts = await getHeartCounts(rows.map((r) => `gb:${r.id}`)).catch(
+    () => ({}) as Record<string, number>,
+  );
   const entries: GuestbookEntryView[] = rows.map((row) => ({
     id: row.id,
     name: row.name,
     note: row.note,
     drawingSvg: row.drawingSvg,
     createdAt: row.createdAt.toISOString(),
+    hearts: hearts[`gb:${row.id}`] ?? 0,
   }));
 
   return (

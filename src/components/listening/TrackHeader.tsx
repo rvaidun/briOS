@@ -8,12 +8,22 @@ import { SourceLinks } from "./SourceLinks";
 type Props = {
   name: string;
   artist: string;
+  primaryArtistId: string | null;
   album: string | null;
+  albumId: string | null;
   imageUrl: string | null;
   spotifyUrl: string | null;
 };
 
-export function TrackHeader({ name, artist, album, imageUrl, spotifyUrl }: Props) {
+export function TrackHeader({
+  name,
+  artist,
+  primaryArtistId,
+  album,
+  albumId,
+  imageUrl,
+  spotifyUrl,
+}: Props) {
   return (
     <div className="border-secondary rounded-md border bg-white p-4 dark:bg-white/5">
       <Link
@@ -37,8 +47,32 @@ export function TrackHeader({ name, artist, album, imageUrl, spotifyUrl }: Props
         )}
         <div className="min-w-0 flex-1">
           <h1 className="text-primary truncate text-xl font-semibold md:text-2xl">{name}</h1>
-          <div className="text-secondary mt-0.5 truncate text-sm">{artist}</div>
-          {album && <div className="text-tertiary mt-0.5 truncate text-xs">{album}</div>}
+          <div className="text-secondary mt-0.5 truncate text-sm">
+            {primaryArtistId ? (
+              <Link
+                href={`/listening/artists/${primaryArtistId}`}
+                className="hover:text-primary hover:underline"
+              >
+                {artist}
+              </Link>
+            ) : (
+              artist
+            )}
+          </div>
+          {album && (
+            <div className="text-tertiary mt-0.5 truncate text-xs">
+              {albumId ? (
+                <Link
+                  href={`/listening/albums/${albumId}`}
+                  className="hover:text-primary hover:underline"
+                >
+                  {album}
+                </Link>
+              ) : (
+                album
+              )}
+            </div>
+          )}
           <div className="mt-2">
             <SourceLinks spotifyUrl={spotifyUrl} size={16} />
           </div>

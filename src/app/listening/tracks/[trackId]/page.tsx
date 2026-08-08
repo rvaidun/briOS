@@ -66,7 +66,9 @@ export default async function TrackPage({ params }: { params: Promise<{ trackId:
         <TrackHeader
           name={overview.name}
           artist={overview.artist}
+          primaryArtistId={overview.primaryArtistId}
           album={overview.album}
+          albumId={overview.albumId}
           imageUrl={overview.imageUrl}
           spotifyUrl={overview.spotifyUrl}
         />

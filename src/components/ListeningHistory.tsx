@@ -49,7 +49,9 @@ interface ListeningHistoryRowProps {
     trackId: string;
     name: string;
     artist: string;
+    primaryArtistId: string | null;
     album: string;
+    albumId: string | null;
     image?: string;
     spotifyUrl?: string;
     playedAt: string;
@@ -104,7 +106,18 @@ function ListeningHistoryRow({ item }: ListeningHistoryRowProps) {
               </span>
               <span className="truncate">{item.name}</span>
             </span>
-            <div className="text-tertiary truncate text-sm md:hidden">{item.artist}</div>
+            <div className="text-tertiary truncate text-sm md:hidden">
+              {item.primaryArtistId ? (
+                <Link
+                  href={`/listening/artists/${item.primaryArtistId}`}
+                  className="relative z-20 hover:underline"
+                >
+                  {item.artist}
+                </Link>
+              ) : (
+                item.artist
+              )}
+            </div>
             <div className="text-tertiary truncate text-sm md:hidden">
               {new Date(item.playedAt).toLocaleDateString("en-US", {
                 month: "short",
@@ -117,10 +130,28 @@ function ListeningHistoryRow({ item }: ListeningHistoryRowProps) {
 
         {/* Desktop-only columns */}
         <div className="text-tertiary hidden min-w-[110px] flex-1 truncate md:block">
-          {item.artist}
+          {item.primaryArtistId ? (
+            <Link
+              href={`/listening/artists/${item.primaryArtistId}`}
+              className="relative z-20 hover:underline"
+            >
+              {item.artist}
+            </Link>
+          ) : (
+            item.artist
+          )}
         </div>
         <div className="text-tertiary hidden min-w-[110px] flex-1 truncate md:block">
-          {item.album}
+          {item.albumId ? (
+            <Link
+              href={`/listening/albums/${item.albumId}`}
+              className="relative z-20 hover:underline"
+            >
+              {item.album}
+            </Link>
+          ) : (
+            item.album
+          )}
         </div>
         <div className="text-tertiary hidden min-w-[90px] whitespace-nowrap md:block">
           {new Date(item.playedAt).toLocaleDateString("en-US", {

@@ -6,6 +6,9 @@ import { SourceLinks } from "./SourceLinks";
 export type TopListItem = {
   primary: string;
   secondary?: string;
+  // When set, the secondary sub-text is rendered as a link (rides above the
+  // row-wide `href` overlay via z-index).
+  secondaryHref?: string;
   imageUrl?: string | null;
   spotifyUrl?: string | null;
   href?: string;
@@ -63,7 +66,15 @@ export function TopList({
                   <div className="min-w-0 flex-1">
                     <div className="text-primary truncate text-sm font-medium">{item.primary}</div>
                     {item.secondary && (
-                      <div className="text-tertiary truncate text-xs">{item.secondary}</div>
+                      <div className="text-tertiary truncate text-xs">
+                        {item.secondaryHref ? (
+                          <Link href={item.secondaryHref} className="relative z-20 hover:underline">
+                            {item.secondary}
+                          </Link>
+                        ) : (
+                          item.secondary
+                        )}
+                      </div>
                     )}
                   </div>
                   <span className="text-tertiary flex-none text-xs tabular-nums">

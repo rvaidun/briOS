@@ -94,6 +94,9 @@ export default async function ArtistPage({ params }: { params: Promise<{ artistI
             items={topTracks.map((t) => ({
               primary: t.name,
               secondary: t.artist,
+              secondaryHref: t.primaryArtistId
+                ? `/listening/artists/${t.primaryArtistId}`
+                : undefined,
               imageUrl: t.imageUrl,
               spotifyUrl: t.spotifyUrl,
               href: `/listening/tracks/${t.id}`,

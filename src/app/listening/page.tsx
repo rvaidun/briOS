@@ -84,6 +84,9 @@ export default async function ListeningPage({
             items={stats.topTracks.map((t) => ({
               primary: t.name,
               secondary: t.artist,
+              secondaryHref: t.primaryArtistId
+                ? `/listening/artists/${t.primaryArtistId}`
+                : undefined,
               imageUrl: t.imageUrl,
               spotifyUrl: t.spotifyUrl,
               href: `/listening/tracks/${t.id}`,
@@ -98,6 +101,7 @@ export default async function ListeningPage({
           items={stats.topAlbums.map((a) => ({
             primary: a.album,
             secondary: a.artist,
+            secondaryHref: a.artistId ? `/listening/artists/${a.artistId}` : undefined,
             imageUrl: a.imageUrl,
             spotifyUrl: a.spotifyUrl,
             href: `/listening/albums/${a.id}`,

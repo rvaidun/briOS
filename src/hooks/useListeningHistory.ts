@@ -12,7 +12,9 @@ export type MusicItem = {
   source: "spotify";
   name: string;
   artist: string;
+  primaryArtistId: string | null;
   album: string;
+  albumId: string | null;
   spotifyUrl?: string;
   playedAt: string;
   image?: string;

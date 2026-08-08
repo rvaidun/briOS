@@ -100,6 +100,8 @@ export type TopTrack = {
   id: string;
   name: string;
   artist: string;
+  // Primary credit (position=0) for linking the artist sub-text.
+  primaryArtistId: string | null;
   imageUrl: string | null;
   spotifyUrl: string | null;
   plays: number;
@@ -110,6 +112,7 @@ type TopTrackRow = {
   id: string;
   name: string;
   artist: string;
+  primary_artist_id: string | null;
   image_url: string | null;
   spotify_url: string | null;
   plays: number;
@@ -121,6 +124,7 @@ function mapTopTrack(row: TopTrackRow): TopTrack {
     id: row.id,
     name: row.name,
     artist: row.artist,
+    primaryArtistId: row.primary_artist_id,
     imageUrl: row.image_url,
     spotifyUrl: row.spotify_url,
     plays: row.plays,
@@ -140,6 +144,17 @@ const artistDisplaySql = sql`
   ) tar on true
 `;
 
+// Primary artist (position=0) for a track — used to make the artist sub-text
+// linkable without splitting the joined display string.
+const primaryArtistSql = sql`
+  left join lateral (
+    select artist_id from track_artists
+    where track_id = t.id
+    order by position asc
+    limit 1
+  ) lead on true
+`;
+
 // Filter listens to only those where the given artist is credited on the
 // track. Uses EXISTS on track_artists rather than a join to avoid multiplying
 // listen rows for tracks with more than one credited artist beyond the target.
@@ -153,6 +168,7 @@ export async function getTopTracksByArtist(
       t.id::text as id,
       t.name,
       tar.names as artist,
+      lead.artist_id::text as primary_artist_id,
       t.image_url,
       (t.sources -> 'spotify' ->> 'url') as spotify_url,
       count(*)::int as plays,
@@ -160,12 +176,13 @@ export async function getTopTracksByArtist(
     from listens l
     join tracks t on t.id = l.track_id
     ${artistDisplaySql}
+    ${primaryArtistSql}
     where ${rangePredicate(range)}
       and exists (
         select 1 from track_artists ta
         where ta.track_id = t.id and ta.artist_id = ${artistId}::uuid
       )
-    group by t.id, t.name, tar.names, t.image_url, t.sources
+    group by t.id, t.name, tar.names, lead.artist_id, t.image_url, t.sources
     order by plays desc, t.name asc
     limit ${limit}
   `);
@@ -178,6 +195,7 @@ export async function getTopTracks(range: DateRange, limit = 10): Promise<TopTra
       t.id::text as id,
       t.name,
       tar.names as artist,
+      lead.artist_id::text as primary_artist_id,
       t.image_url,
       (t.sources -> 'spotify' ->> 'url') as spotify_url,
       count(*)::int as plays,
@@ -185,8 +203,9 @@ export async function getTopTracks(range: DateRange, limit = 10): Promise<TopTra
     from listens l
     join tracks t on t.id = l.track_id
     ${artistDisplaySql}
+    ${primaryArtistSql}
     where ${rangePredicate(range)}
-    group by t.id, t.name, tar.names, t.image_url, t.sources
+    group by t.id, t.name, tar.names, lead.artist_id, t.image_url, t.sources
     order by plays desc, t.name asc
     limit ${limit}
   `);
@@ -197,6 +216,8 @@ export type TopAlbum = {
   id: string;
   album: string;
   artist: string;
+  // Primary album credit — used to make the artist sub-text linkable.
+  artistId: string | null;
   imageUrl: string | null;
   spotifyUrl: string | null;
   plays: number;
@@ -208,13 +229,8 @@ export async function getTopAlbums(range: DateRange, limit = 10): Promise<TopAlb
     select
       al.id::text as id,
       al.name as album,
-      (
-        select a.name from album_artists aa
-        join artists a on a.id = aa.artist_id
-        where aa.album_id = al.id
-        order by aa.position asc
-        limit 1
-      ) as artist,
+      lead.name as artist,
+      lead.artist_id::text as artist_id,
       coalesce(al.image_url, max(t.image_url)) as image_url,
       (al.sources -> 'spotify' ->> 'url') as spotify_url,
       count(*)::int as plays,
@@ -222,8 +238,16 @@ export async function getTopAlbums(range: DateRange, limit = 10): Promise<TopAlb
     from listens l
     join tracks t on t.id = l.track_id
     join albums al on al.id = t.album_id
+    left join lateral (
+      select a.id as artist_id, a.name as name
+      from album_artists aa
+      join artists a on a.id = aa.artist_id
+      where aa.album_id = al.id
+      order by aa.position asc
+      limit 1
+    ) lead on true
     where ${rangePredicate(range)}
-    group by al.id, al.name, al.image_url, al.sources
+    group by al.id, al.name, al.image_url, al.sources, lead.name, lead.artist_id
     order by plays desc, al.name asc
     limit ${limit}
   `);
@@ -232,6 +256,7 @@ export async function getTopAlbums(range: DateRange, limit = 10): Promise<TopAlb
       id: string;
       album: string;
       artist: string;
+      artist_id: string | null;
       image_url: string | null;
       spotify_url: string | null;
       plays: number;
@@ -241,6 +266,7 @@ export async function getTopAlbums(range: DateRange, limit = 10): Promise<TopAlb
     id: row.id,
     album: row.album,
     artist: row.artist,
+    artistId: row.artist_id,
     imageUrl: row.image_url,
     spotifyUrl: row.spotify_url,
     plays: row.plays,

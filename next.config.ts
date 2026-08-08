@@ -6,6 +6,27 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  // Any request that reaches Next.js with the old hostname gets a permanent
+  // redirect to the new one, preserving the path + query. Vercel's own
+  // domain-level redirect (configured in the dashboard) handles this before
+  // a function invocation; this is a belt-and-suspenders in case the DNS or
+  // Vercel alias config drifts.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.rahulvaidun.com" }],
+        destination: "https://rahul.ws/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "rahulvaidun.com" }],
+        destination: "https://rahul.ws/:path*",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     // Allow lower-quality variants for gallery thumbnails. Default is [75];
     // 55 is used by BlogImage when rendered as a masonry tile.

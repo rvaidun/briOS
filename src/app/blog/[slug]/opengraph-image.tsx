@@ -16,12 +16,12 @@ export default async function Image(props: { params: Promise<{ slug: string }> }
   if (!metadata) {
     return generateOGImage({
       title: "Writing",
-      url: "rahulvaidun.com/blog",
+      url: "rahul.ws/blog",
     });
   }
 
   return generateOGImage({
     title: metadata.title,
-    url: `rahulvaidun.com/blog/${slug}`,
+    url: `rahul.ws/blog/${slug}`,
   });
 }

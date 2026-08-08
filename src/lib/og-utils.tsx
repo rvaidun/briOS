@@ -157,7 +157,7 @@ export async function generateOGImage({ title, url, subtitle }: OGImageProps) {
               marginTop: 8,
             }}
           >
-            rahulvaidun.com
+            rahul.ws
           </div>
         </div>
       </div>,

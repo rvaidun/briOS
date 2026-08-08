@@ -11,6 +11,6 @@ export const contentType = "image/png";
 export default async function Image() {
   return generateOGImage({
     title: "Blog",
-    url: "rahulvaidun.com/blog",
+    url: "rahul.ws/blog",
   });
 }

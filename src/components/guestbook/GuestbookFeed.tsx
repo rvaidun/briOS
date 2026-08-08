@@ -1,58 +1,93 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 
-import { Section, SectionHeading } from "@/components/shared/ListComponents";
+import { useIsSmallScreen } from "@/hooks/useIsSmallScreen";
 
+import { DeskMat } from "./DeskMat";
+import { DraggablePolaroid } from "./DraggablePolaroid";
 import { GuestbookForm } from "./GuestbookForm";
+import { computeScatter } from "./scatter";
 import type { GuestbookEntryView } from "./types";
 
-export function GuestbookFeed({ initialEntries }: { initialEntries: GuestbookEntryView[] }) {
+// Desktop: 4×3 grid slots with mild jitter — polaroids brush shoulders but
+// don't stack. Mobile: 2×4 slots, smaller cards. Overlap is intentional
+// (looks like a desk) but full occlusion is not.
+const DESKTOP_LIMIT = 12;
+const MOBILE_LIMIT = 8;
+
+export function GuestbookFeed({
+  initialEntries,
+  totalCount,
+}: {
+  initialEntries: GuestbookEntryView[];
+  totalCount: number;
+}) {
   const [entries, setEntries] = useState<GuestbookEntryView[]>(initialEntries);
+  const [zOrder, setZOrder] = useState<Record<string, number>>({});
+  const [topZ, setTopZ] = useState(1);
+  const isSmall = useIsSmallScreen();
+
+  const limit = isSmall ? MOBILE_LIMIT : DESKTOP_LIMIT;
+  const shown = entries.slice(0, limit);
+
+  const scatter = useMemo(
+    () =>
+      computeScatter(
+        shown.map((e) => e.id),
+        isSmall
+          ? { cols: 2, padXPct: 4, padTopPct: 6, padBottomPct: 45, slotJitter: 0.55 }
+          : { cols: 4, padXPct: 4, padTopPct: 8, padBottomPct: 26, slotJitter: 0.75 },
+      ),
+    [shown, isSmall],
+  );
+
+  const bringForward = (id: string) => {
+    const next = topZ + 1;
+    setTopZ(next);
+    setZOrder((prev) => ({ ...prev, [id]: next }));
+  };
 
   return (
-    <div className="flex flex-col gap-16">
-      <Section>
-        <SectionHeading>Sign the book</SectionHeading>
-        <p className="text-secondary text-sm leading-[1.6]">
-          Leave your name and draw whatever — a doodle, a hello, a stick figure. It shows up below.
-        </p>
-        <GuestbookForm onPosted={(entry) => setEntries((prev) => [entry, ...prev])} />
-      </Section>
+    <DeskMat className="min-h-0 w-full flex-1">
+      {totalCount > limit && (
+        <Link
+          href="/guestbook/all"
+          className="absolute top-3 right-3 z-40 rounded-full bg-[#027582] px-3 py-1.5 text-xs font-semibold text-white shadow-md transition hover:scale-105 hover:-rotate-3"
+        >
+          see all notes →
+        </Link>
+      )}
 
-      <Section>
-        <SectionHeading>Notes</SectionHeading>
-        {entries.length === 0 ? (
-          <p className="text-quaternary text-sm">Be the first to sign.</p>
-        ) : (
-          <ul className="flex flex-col gap-8">
-            {entries.map((entry) => (
-              <li
-                key={entry.id}
-                className="border-secondary flex flex-col gap-2 rounded-md border p-3"
-              >
-                <div
-                  className="text-primary aspect-[600/280] w-full overflow-hidden rounded-sm bg-white dark:bg-white/[0.02] [&_svg]:h-full [&_svg]:w-full"
-                  dangerouslySetInnerHTML={{ __html: entry.drawingSvg }}
-                />
-                <div className="text-quaternary flex items-center justify-between text-xs">
-                  <span className="text-secondary font-medium">— {entry.name}</span>
-                  <time dateTime={entry.createdAt}>{formatDate(entry.createdAt)}</time>
-                </div>
-              </li>
-            ))}
-          </ul>
+      <div className="relative h-full">
+        {shown.map((entry) => {
+          const s = scatter[entry.id];
+          if (!s) return null;
+          return (
+            <DraggablePolaroid
+              key={entry.id}
+              entry={entry}
+              initialXPct={s.xPct}
+              initialYPct={s.yPct}
+              rotDeg={s.rotDeg}
+              z={zOrder[entry.id] ?? 1}
+              onGrab={() => bringForward(entry.id)}
+              size={isSmall ? "sm" : "md"}
+            />
+          );
+        })}
+        {shown.length === 0 && (
+          <p className="absolute inset-x-0 top-1/3 text-center text-sm text-white/80">
+            Be the first to sign. Tap “leave a note” below.
+          </p>
         )}
-      </Section>
-    </div>
-  );
-}
+      </div>
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+      {/* Floating form. Absolute inside the mat so it's scoped to this pane. */}
+      <div className="fixed inset-x-3 bottom-3 z-50 md:absolute md:right-6 md:bottom-6 md:left-auto md:w-80">
+        <GuestbookForm onPosted={(entry) => setEntries((prev) => [entry, ...prev])} />
+      </div>
+    </DeskMat>
+  );
 }

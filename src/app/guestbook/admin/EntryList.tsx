@@ -39,6 +39,9 @@ export function EntryList({ entries }: { entries: GuestbookEntryView[] }) {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 text-xs">
                   <div className="text-secondary truncate font-medium">{entry.name}</div>
+                  {entry.note && (
+                    <div className="text-primary line-clamp-2 text-sm">{entry.note}</div>
+                  )}
                   <time className="text-quaternary" dateTime={entry.createdAt}>
                     {new Date(entry.createdAt).toLocaleString()}
                   </time>

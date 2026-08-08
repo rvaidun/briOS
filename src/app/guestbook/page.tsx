@@ -3,22 +3,26 @@ import type { Metadata } from "next";
 import { GuestbookFeed } from "@/components/guestbook/GuestbookFeed";
 import type { GuestbookEntryView } from "@/components/guestbook/types";
 import { TopBar } from "@/components/TopBar";
-import { listGuestbookEntries } from "@/lib/db/guestbook";
+import { countGuestbookEntries, listGuestbookEntries } from "@/lib/db/guestbook";
 import { createMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createMetadata({
   title: "Guestbook",
-  description: "Sign the book — leave your name and draw whatever.",
+  description: "Sign the book — leave your name, draw a doodle, add a note.",
   path: "/guestbook",
 });
 
 export const dynamic = "force-dynamic";
 
 export default async function GuestbookPage() {
-  const rows = await listGuestbookEntries().catch(() => []);
+  const [rows, total] = await Promise.all([
+    listGuestbookEntries(24).catch(() => []),
+    countGuestbookEntries().catch(() => 0),
+  ]);
   const entries: GuestbookEntryView[] = rows.map((row) => ({
     id: row.id,
     name: row.name,
+    note: row.note,
     drawingSvg: row.drawingSvg,
     createdAt: row.createdAt.toISOString(),
   }));
@@ -28,10 +32,11 @@ export default async function GuestbookPage() {
       <TopBar>
         <div className="flex-1 text-sm font-medium">Guestbook</div>
       </TopBar>
-      <div data-scrollable className="flex-1 overflow-y-auto pt-11 md:pt-0">
-        <div className="text-secondary mx-auto flex max-w-xl flex-col gap-16 py-16 leading-[1.6]">
-          <GuestbookFeed initialEntries={entries} />
-        </div>
+      <div data-scrollable className="relative flex flex-1 flex-col overflow-hidden">
+        {/* Spacer for the fixed mobile TopBar — desktop TopBar is in normal
+            flow so no offset is needed there. */}
+        <div className="h-11 shrink-0 md:hidden" />
+        <GuestbookFeed initialEntries={entries} totalCount={total} />
       </div>
     </>
   );

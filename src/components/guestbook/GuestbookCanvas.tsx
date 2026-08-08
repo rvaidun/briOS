@@ -6,8 +6,8 @@ import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
-export const CANVAS_WIDTH = 600;
-export const CANVAS_HEIGHT = 280;
+export const CANVAS_WIDTH = 400;
+export const CANVAS_HEIGHT = 400;
 
 export interface GuestbookCanvasHandle {
   toSvg: () => string | null;
@@ -100,7 +100,7 @@ export const GuestbookCanvas = forwardRef<GuestbookCanvasHandle, { className?: s
           aria-label="Draw here"
           viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
           preserveAspectRatio="xMidYMid meet"
-          className="border-secondary text-primary aspect-[600/280] w-full touch-none rounded-md border bg-white select-none dark:bg-white/[0.02]"
+          className="border-secondary text-primary aspect-square w-full touch-none rounded-md border bg-white select-none"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}

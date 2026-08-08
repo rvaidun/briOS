@@ -44,6 +44,7 @@ async function AuthedView() {
   const entries: GuestbookEntryView[] = rows.map((row) => ({
     id: row.id,
     name: row.name,
+    note: row.note,
     drawingSvg: row.drawingSvg,
     createdAt: row.createdAt.toISOString(),
   }));

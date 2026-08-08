@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       if (!success) return errorResponse("Too many entries — try again later.", 429);
     }
 
-    let payload: { name?: unknown; drawingSvg?: unknown };
+    let payload: { name?: unknown; note?: unknown; drawingSvg?: unknown };
     try {
       payload = await request.json();
     } catch {
@@ -91,11 +91,18 @@ export async function POST(request: Request) {
       return errorResponse("Name must be 1–40 characters", 400);
     }
 
+    const rawNote = typeof payload.note === "string" ? payload.note.trim() : "";
+    if (rawNote.length > 200) {
+      return errorResponse("Note must be 200 characters or fewer", 400);
+    }
+    const note = rawNote.length > 0 ? rawNote : null;
+
     const drawingSvg = sanitizeGuestbookSvg(payload.drawingSvg);
     if (!drawingSvg) return errorResponse("Drawing is empty or invalid", 400);
 
     const entry = await createGuestbookEntry({
       name,
+      note,
       drawingSvg,
       ipHash: hashIp(ip),
     });

@@ -219,6 +219,7 @@ export const guestbookEntries = pgTable(
       .primaryKey()
       .default(sql`gen_random_uuid()`),
     name: text("name").notNull(),
+    note: text("note"),
     drawingSvg: text("drawing_svg").notNull(),
     ipHash: text("ip_hash"),
     createdAt: timestamp("created_at", { withTimezone: true })

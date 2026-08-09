@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { TopBar } from "@/components/TopBar";
 import { getSharedAlbumPhotos } from "@/lib/google-photos";
+import { getHeartCounts } from "@/lib/hearts";
 import { createMetadata } from "@/lib/metadata";
 
 import { PhotosFeed } from "./PhotosFeed";
@@ -22,6 +23,14 @@ export default async function PhotosPage() {
     console.error("Failed to load initial photos", err);
     initialPage = { items: [], nextCursor: null };
   }
+
+  const hearts = await getHeartCounts(initialPage.items.map((p) => `photo:${p.id}`)).catch(
+    () => ({}) as Record<string, number>,
+  );
+  initialPage = {
+    ...initialPage,
+    items: initialPage.items.map((p) => ({ ...p, hearts: hearts[`photo:${p.id}`] ?? 0 })),
+  };
 
   return (
     <>

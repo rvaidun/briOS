@@ -4,6 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import Image from "next/image";
 import { useCallback, useEffect, useRef } from "react";
 
+import { PhotoHeartButton } from "@/components/photos/PhotoHeartButton";
 import type { Photo } from "@/lib/google-photos/types";
 
 interface LightboxProps {
@@ -122,8 +123,11 @@ export function Lightbox({ photos, index, onClose, onIndexChange }: LightboxProp
               >
                 {photo.description ?? ""}
               </div>
-              <div className="text-right font-mono text-xs text-white/60 tabular-nums">
-                {index! + 1} / {photos.length}
+              <div className="pointer-events-auto flex items-center justify-end gap-3">
+                <PhotoHeartButton id={photo.id} initialCount={photo.hearts ?? 0} />
+                <span className="font-mono text-xs text-white/60 tabular-nums">
+                  {index! + 1} / {photos.length}
+                </span>
               </div>
             </div>
           )}

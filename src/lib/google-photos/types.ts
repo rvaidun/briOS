@@ -7,6 +7,7 @@ export interface Photo {
   height: number;
   creationTime: string;
   description?: string;
+  hearts?: number;
 }
 
 export type PhotosPage = InfiniteScrollPage<Photo>;

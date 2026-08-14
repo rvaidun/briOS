@@ -43,6 +43,13 @@ export default async function PhotosPage() {
         className="flex-1"
         contentClassName="pt-11 md:pt-0"
         contentDataAttributes={{ "data-scrollable": "" }}
+        zone={160}
+        angle={45}
+        rounding={120}
+        perspective={1000}
+        ease={320}
+        tumble={0.25}
+        tilt={0.2}
       >
         <PhotosFeed initialData={[initialPage]} />
       </Bend>

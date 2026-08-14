@@ -1006,7 +1006,10 @@ export function Bend({
   };
 
   return (
-    <div className={className} style={{ position: "relative", ...style }}>
+    <div
+      className={className}
+      style={{ position: "relative", overflow: "hidden", minHeight: 0, ...style }}
+    >
       <canvas
         ref={sourceRef}
         // @ts-expect-error experimental html-in-canvas attribute

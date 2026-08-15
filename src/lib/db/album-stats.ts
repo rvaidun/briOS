@@ -147,9 +147,7 @@ export async function getAlbumHeatmap(albumId: string): Promise<AlbumHeatmapCell
     where t.album_id = ${albumId}::uuid
     group by 1, 2
   `);
-  return (
-    r.rows as { day_of_week: number; hour_of_day: number; plays: number }[]
-  ).map((row) => ({
+  return (r.rows as { day_of_week: number; hour_of_day: number; plays: number }[]).map((row) => ({
     dayOfWeek: row.day_of_week,
     hourOfDay: row.hour_of_day,
     plays: row.plays,

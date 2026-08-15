@@ -20,9 +20,9 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { basename } from "node:path";
 
-import { parseFit, type RunPayload } from "../src/lib/strava/fit";
-import { downloadDriveFile, listFitFilesInFolder } from "../src/lib/strava/google-drive";
-import { getLatestDriveModifiedTime, upsertRunFromFit } from "../src/lib/strava/runs";
+import { parseFit, type RunPayload } from "../src/lib/runs/fit";
+import { downloadDriveFile, listFitFilesInFolder } from "../src/lib/runs/google-drive";
+import { getLatestDriveModifiedTime, upsertRunFromFit } from "../src/lib/runs/runs";
 
 type Counters = { inserted: number; skipped: number; failed: number };
 

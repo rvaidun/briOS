@@ -3,14 +3,14 @@ import Link from "next/link";
 
 import { TopBar } from "@/components/TopBar";
 import { createMetadata } from "@/lib/metadata";
-import { listRunGeometries } from "@/lib/strava/runs";
+import { listRunGeometries } from "@/lib/runs/runs";
 
 import { RunHeatmap } from "../RunHeatmap";
 
 export const metadata: Metadata = createMetadata({
   title: "Heatmap",
   description: "Every run, overlaid on one map",
-  path: "/strava/heatmap",
+  path: "/runs/heatmap",
 });
 
 export const revalidate = 3600;
@@ -21,7 +21,7 @@ export default async function HeatmapPage() {
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <TopBar>
-        <Link href="/strava" className="text-tertiary hover:text-primary text-sm">
+        <Link href="/runs" className="text-tertiary hover:text-primary text-sm">
           ← Runs
         </Link>
         <div className="text-primary flex-1 truncate text-sm font-semibold">

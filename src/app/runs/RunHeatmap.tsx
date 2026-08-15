@@ -5,9 +5,9 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
-import { ensureMapLibreWorker, getMapStyle } from "@/lib/strava/map-style";
-import { decodePolyline, type LatLng } from "@/lib/strava/polyline";
-import type { RunGeom } from "@/lib/strava/runs";
+import { ensureMapLibreWorker, getMapStyle } from "@/lib/runs/map-style";
+import { decodePolyline, type LatLng } from "@/lib/runs/polyline";
+import type { RunGeom } from "@/lib/runs/runs";
 
 ensureMapLibreWorker();
 

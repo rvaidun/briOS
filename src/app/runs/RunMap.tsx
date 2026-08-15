@@ -6,8 +6,8 @@ import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
 import type { RunBbox } from "@/lib/db/schema";
-import { ensureMapLibreWorker, getMapStyle } from "@/lib/strava/map-style";
-import { decodePolyline, type LatLng } from "@/lib/strava/polyline";
+import { ensureMapLibreWorker, getMapStyle } from "@/lib/runs/map-style";
+import { decodePolyline, type LatLng } from "@/lib/runs/polyline";
 
 ensureMapLibreWorker();
 

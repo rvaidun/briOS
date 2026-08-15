@@ -4,11 +4,10 @@ import { notFound } from "next/navigation";
 
 import { TopBar } from "@/components/TopBar";
 import { createMetadata } from "@/lib/metadata";
-import { getParsedFit } from "@/lib/strava/fit-cache";
-import { getRunById } from "@/lib/strava/runs";
-import { computeSplits, MILE_METERS } from "@/lib/strava/splits";
+import { getParsedFit } from "@/lib/runs/fit-cache";
+import { getRunById } from "@/lib/runs/runs";
+import { computeSplits, MILE_METERS } from "@/lib/runs/splits";
 
-import { KudosBadge } from "../KudosBadge";
 import { RunCharts } from "../RunCharts";
 import { RunMap } from "../RunMap";
 import { RunSplitsTable } from "../RunSplitsTable";
@@ -23,12 +22,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const run = await getRunById(id);
-  if (!run) return createMetadata({ title: "Run not found", path: `/strava/${id}` });
+  if (!run) return createMetadata({ title: "Run not found", path: `/runs/${id}` });
   const distanceMi = (run.distanceM / 1609.344).toFixed(2);
   return createMetadata({
-    title: `${run.stravaName ?? "Run"} · ${distanceMi} mi`,
+    title: `${run.name ?? "Run"} · ${distanceMi} mi`,
     description: `${distanceMi} mi · ${formatDuration(run.movingTimeS)}${run.avgHr ? ` · avg HR ${run.avgHr}` : ""}`,
-    path: `/strava/${id}`,
+    path: `/runs/${id}`,
   });
 }
 
@@ -46,16 +45,15 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
   }
 
   const splits = parsed ? computeSplits(parsed.records, MILE_METERS) : [];
-  const title = run.stravaName ?? `${capitalize(run.sport)}`;
+  const title = run.name ?? `${capitalize(run.sport)}`;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <TopBar>
-        <Link href="/strava" className="text-tertiary hover:text-primary text-sm">
+        <Link href="/runs" className="text-tertiary hover:text-primary text-sm">
           ← Runs
         </Link>
         <div className="text-primary flex-1 truncate text-sm font-semibold">{title}</div>
-        <KudosBadge kudos={run.stravaKudos} comments={run.stravaCommentCount} />
       </TopBar>
 
       <div
@@ -95,12 +93,6 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
             <p className="mt-1">
               Couldn&apos;t parse the .fit from Drive: {parseError ?? "unknown error"}
             </p>
-          </div>
-        )}
-
-        {run.stravaDescription && (
-          <div className="border-secondary rounded-md border bg-white p-4 text-sm whitespace-pre-line text-neutral-700 dark:bg-white/5 dark:text-neutral-300">
-            {run.stravaDescription}
           </div>
         )}
       </div>

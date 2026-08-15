@@ -70,12 +70,12 @@ export const navigationItems: NavigationItem[] = [
   },
 
   {
-    id: "strava",
-    label: "Strava",
-    href: "/strava",
+    id: "runs",
+    label: "Runs",
+    href: "/runs",
     icon: Sneaker,
-    keywords: ["strava", "running", "runs", "fitness", "activity", "gps"],
-    isActive: (pathname) => pathname.startsWith("/strava"),
+    keywords: ["runs", "running", "run", "fitness", "activity", "gps", "strava"],
+    isActive: (pathname) => pathname.startsWith("/runs"),
     section: "main",
   },
 

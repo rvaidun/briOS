@@ -98,38 +98,3 @@ export async function getLatestDriveModifiedTime(): Promise<Date | undefined> {
     .from(runs);
   return rows[0]?.max ?? undefined;
 }
-
-export type StravaOverlayInput = {
-  activityId: string;
-  name: string;
-  description: string | null;
-  kudos: number;
-  commentCount: number;
-  achievementCount: number;
-  startedAt: Date;
-  distanceM: number;
-};
-
-// Attach a Strava activity's social + title metadata onto whichever runs row
-// matches its start-time and distance. Two-signal match: within ±60s of the
-// FIT's start_time AND within 100m of the FIT's total distance. Only the
-// strava_* columns are touched — geometry/HR stay owned by the FIT.
-export async function applyStravaOverlay(input: StravaOverlayInput): Promise<number> {
-  const result = await db.execute(raw`
-    UPDATE runs SET
-      strava_activity_id       = ${input.activityId},
-      strava_name              = ${input.name},
-      strava_description       = ${input.description},
-      strava_kudos             = ${input.kudos},
-      strava_comment_count     = ${input.commentCount},
-      strava_achievement_count = ${input.achievementCount},
-      strava_synced_at         = now(),
-      updated_at               = now()
-    WHERE started_at BETWEEN ${input.startedAt} - interval '60 seconds'
-                         AND ${input.startedAt} + interval '60 seconds'
-      AND ABS(distance_m - ${input.distanceM}) < 100
-      AND (strava_activity_id IS NULL OR strava_activity_id = ${input.activityId})
-    RETURNING id
-  `);
-  return result.rowCount ?? 0;
-}

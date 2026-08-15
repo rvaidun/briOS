@@ -6,12 +6,12 @@ import { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 
 import type { RunBbox } from "@/lib/db/schema";
-import { ensureMapLibreWorker, getMapStyle } from "@/lib/strava/map-style";
-import { decodePolyline, type LatLng } from "@/lib/strava/polyline";
+import { ensureMapLibreWorker, getMapStyle } from "@/lib/runs/map-style";
+import { decodePolyline, type LatLng } from "@/lib/runs/polyline";
 
 ensureMapLibreWorker();
 
-// Tiny non-interactive map for the /strava list. Lazy-mounts once the card
+// Tiny non-interactive map for the /runs list. Lazy-mounts once the card
 // enters the viewport so scrolling a long list doesn't spin up N WebGL
 // contexts up front. Once mounted, the polyline is drawn on top of the
 // base tiles at fixed zoom-to-fit.

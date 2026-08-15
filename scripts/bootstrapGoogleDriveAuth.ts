@@ -15,7 +15,7 @@
  * granting account matches GOOGLE_OWNER_EMAIL before saving.
  */
 import { saveOAuthTokens } from "@/lib/db/oauth";
-import { exchangeAuthCode, fetchUserEmail, getAuthorizationUrl } from "@/lib/strava/google-drive";
+import { exchangeAuthCode, fetchUserEmail, getAuthorizationUrl } from "@/lib/runs/google-drive";
 
 const redirectUri = process.env.GOOGLE_REDIRECT_URI ?? "http://localhost/callback/";
 const ownerEmail = process.env.GOOGLE_OWNER_EMAIL;

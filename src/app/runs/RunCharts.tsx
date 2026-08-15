@@ -1,4 +1,4 @@
-import type { FitRecord } from "@/lib/strava/fit";
+import type { FitRecord } from "@/lib/runs/fit";
 
 // Two side-by-side SVG charts: heart rate (bpm vs distance) and pace (per-mile
 // vs distance). Server-rendered — no client JS. Both are ~200-line hand

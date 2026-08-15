@@ -46,9 +46,7 @@ export function TopArtistsList({ artists, rangeQuery }: Props) {
                         {i + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="text-primary truncate text-sm font-medium">
-                          {a.artist}
-                        </div>
+                        <div className="text-primary truncate text-sm font-medium">{a.artist}</div>
                       </div>
                       <span className="text-tertiary flex-none text-xs tabular-nums">
                         {a.plays.toLocaleString()}

@@ -1,4 +1,4 @@
-// Parse-on-demand for the /strava/[id] detail page. Wraps Drive download +
+// Parse-on-demand for the /runs/[id] detail page. Wraps Drive download +
 // parseFit in unstable_cache so repeat renders skip the network + parse cost.
 // The cache key includes driveModifiedTime, so re-uploading a file (which
 // changes its modifiedTime in Drive) busts the cache automatically. The
@@ -50,8 +50,8 @@ const _getParsedFitCached = unstable_cache(
     const bytes = await loadBytes(driveFileId);
     return parseFit(bytes);
   },
-  ["strava-fit"],
-  { revalidate: CACHE_TTL_S, tags: ["strava-run"] },
+  ["run-fit"],
+  { revalidate: CACHE_TTL_S, tags: ["run"] },
 );
 
 // unstable_cache serializes values through JSON, which turns Date objects

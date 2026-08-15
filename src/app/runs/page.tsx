@@ -3,30 +3,29 @@ import Link from "next/link";
 
 import { TopBar } from "@/components/TopBar";
 import { createMetadata } from "@/lib/metadata";
-import { listRuns } from "@/lib/strava/runs";
+import { listRuns } from "@/lib/runs/runs";
 
 import { RunCard } from "./RunCard";
 import { StatsStrip } from "./StatsStrip";
 
 export const metadata: Metadata = createMetadata({
-  title: "Strava",
-  description: "runs — .fit files parsed on demand, Strava kudos overlaid",
-  path: "/strava",
+  title: "Runs",
+  description: "Runs from Apple Watch — .fit files parsed on demand",
+  path: "/runs",
 });
 
-// 1h page-level revalidate — kudos sync every hour, so the list picks up
-// changes on that cadence. New runs land instantly once the drive sync cron
-// fires (also hourly).
+// 1h page-level revalidate — the drive sync cron fires hourly, so new runs
+// land on that cadence.
 export const revalidate = 3600;
 
-export default async function StravaPage() {
+export default async function RunsPage() {
   const runs = await listRuns(100);
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <TopBar>
-        <div className="flex-1 text-sm font-semibold">Strava</div>
-        <Link href="/strava/heatmap" className="text-tertiary hover:text-primary pr-1.5 text-sm">
+        <div className="flex-1 text-sm font-semibold">Runs</div>
+        <Link href="/runs/heatmap" className="text-tertiary hover:text-primary pr-1.5 text-sm">
           Heatmap ↗
         </Link>
       </TopBar>

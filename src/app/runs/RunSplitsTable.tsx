@@ -1,4 +1,4 @@
-import { formatPace, type Split } from "@/lib/strava/splits";
+import { formatPace, type Split } from "@/lib/runs/splits";
 
 // Per-mile splits, with a horizontal pace bar for at-a-glance comparison.
 // The bar is scaled to the fastest and slowest split in the set — a narrow

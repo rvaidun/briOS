@@ -10,7 +10,9 @@ import { getVersion, setWorkerUrl, type StyleSpecification } from "maplibre-gl";
 let workerConfigured = false;
 export function ensureMapLibreWorker(): void {
   if (workerConfigured) return;
-  setWorkerUrl(`https://cdn.jsdelivr.net/npm/maplibre-gl@${getVersion()}/dist/maplibre-gl-worker.mjs`);
+  setWorkerUrl(
+    `https://cdn.jsdelivr.net/npm/maplibre-gl@${getVersion()}/dist/maplibre-gl-worker.mjs`,
+  );
   workerConfigured = true;
 }
 

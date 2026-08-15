@@ -244,9 +244,8 @@ export const oauthTokens = pgTable("oauth_tokens", {
 
 // One row per Apple-Watch-exported .fit file. The raw file stays in Google
 // Drive (that's the object store); this table is a small summary index so the
-// /strava list can render fast and the Strava social overlay has something to
-// attach to. Full per-record streams are re-parsed on demand at detail-page
-// render time and cached (see src/lib/strava/fit-cache.ts).
+// /runs list can render fast. Full per-record streams are re-parsed on demand
+// at detail-page render time and cached (see src/lib/runs/fit-cache.ts).
 export const runs = pgTable(
   "runs",
   {
@@ -254,6 +253,8 @@ export const runs = pgTable(
       .primaryKey()
       .default(sql`gen_random_uuid()`),
     sport: text("sport").notNull(),
+    // Admin-editable display name. Falls back to the sport when null.
+    name: text("name"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
     endedAt: timestamp("ended_at", { withTimezone: true }).notNull(),
     timezone: text("timezone"),
@@ -286,15 +287,6 @@ export const runs = pgTable(
     driveMd5: text("drive_md5"),
     driveName: text("drive_name"),
 
-    // Strava social overlay — populated by scripts/syncStravaOverlay.ts.
-    stravaActivityId: text("strava_activity_id"),
-    stravaName: text("strava_name"),
-    stravaDescription: text("strava_description"),
-    stravaKudos: integer("strava_kudos"),
-    stravaCommentCount: integer("strava_comment_count"),
-    stravaAchievementCount: integer("strava_achievement_count"),
-    stravaSyncedAt: timestamp("strava_synced_at", { withTimezone: true }),
-
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -305,7 +297,6 @@ export const runs = pgTable(
   (t) => [
     uniqueIndex("runs_drive_file_uniq").on(t.driveFileId),
     uniqueIndex("runs_drive_md5_uniq").on(t.driveMd5),
-    uniqueIndex("runs_strava_activity_uniq").on(t.stravaActivityId),
     // Dedup by the FIT session's own start timestamp — deterministic per
     // activity even if the .fit is re-exported (which produces different bytes
     // and therefore a different md5).

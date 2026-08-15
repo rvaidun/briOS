@@ -64,7 +64,12 @@ export function EntityKpis({
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
       {base.map((k) => (
-        <Stat key={k.label} label={k.label} value={k.value} suppressHydration={k.suppressHydration} />
+        <Stat
+          key={k.label}
+          label={k.label}
+          value={k.value}
+          suppressHydration={k.suppressHydration}
+        />
       ))}
     </div>
   );

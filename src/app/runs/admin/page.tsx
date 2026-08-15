@@ -1,23 +1,23 @@
 import type { Metadata } from "next";
 
-import type { GuestbookEntryView } from "@/components/guestbook/types";
 import { TopBar } from "@/components/TopBar";
-import { listGuestbookEntries } from "@/lib/db/guestbook";
 import { isAdmin } from "@/lib/admin-auth";
 import { createMetadata } from "@/lib/metadata";
+import { listPhotosForRuns } from "@/lib/runs/photos";
+import { listRuns } from "@/lib/runs/runs";
 
-import { EntryList } from "./EntryList";
 import { LoginForm } from "./LoginForm";
+import { RunAdminList, type RunAdminRow } from "./RunAdminList";
 
 export const metadata: Metadata = createMetadata({
-  title: "Guestbook admin",
-  path: "/guestbook/admin",
+  title: "Runs admin",
+  path: "/runs/admin",
   noIndex: true,
 });
 
 export const dynamic = "force-dynamic";
 
-export default async function GuestbookAdminPage({
+export default async function RunsAdminPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
@@ -28,10 +28,10 @@ export default async function GuestbookAdminPage({
   return (
     <>
       <TopBar>
-        <div className="flex-1 text-sm font-medium">Guestbook · Admin</div>
+        <div className="flex-1 text-sm font-medium">Runs · Admin</div>
       </TopBar>
       <div data-scrollable className="flex-1 overflow-y-auto pt-11 md:pt-0">
-        <div className="mx-auto flex w-full max-w-xl flex-col gap-8 px-4 py-16">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-16">
           {authed ? <AuthedView /> : <LoginForm error={error === "1"} />}
         </div>
       </div>
@@ -40,13 +40,11 @@ export default async function GuestbookAdminPage({
 }
 
 async function AuthedView() {
-  const rows = await listGuestbookEntries();
-  const entries: GuestbookEntryView[] = rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    note: row.note,
-    drawingSvg: row.drawingSvg,
-    createdAt: row.createdAt.toISOString(),
+  const runs = await listRuns(200);
+  const photosByRun = await listPhotosForRuns(runs.map((r) => r.id));
+  const rows: RunAdminRow[] = runs.map((run) => ({
+    ...run,
+    photos: photosByRun.get(run.id) ?? [],
   }));
-  return <EntryList entries={entries} />;
+  return <RunAdminList runs={rows} />;
 }

@@ -2,6 +2,9 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { cookies } from "next/headers";
 
+// Shared password + cookie for every admin page on the site (guestbook, runs,
+// anything future). One password to rotate; one login unlocks everything.
+// Cookie name kept as `gb_admin` to preserve existing guestbook sessions.
 export const ADMIN_COOKIE = "gb_admin";
 export const ADMIN_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 

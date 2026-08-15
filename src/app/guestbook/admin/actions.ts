@@ -13,7 +13,7 @@ import {
   isAdmin,
   passwordMatches,
   tokenFor,
-} from "@/lib/guestbook-admin";
+} from "@/lib/admin-auth";
 
 export async function login(formData: FormData): Promise<void> {
   const password = formData.get("password");

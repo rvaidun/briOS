@@ -34,6 +34,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `SPOTIFY_REDIRECT_URI` - Optional override. When unset, the start/callback routes derive the redirect URI from the request origin (`<origin>/api/auth/spotify/callback`). The production URI must be registered on the Spotify app dashboard.
   - `GUESTBOOK_IP_SALT` - Optional random string used to SHA-256 hash submitter IPs on `/api/guestbook`. Enables bulk-deleting abuse by IP without storing raw addresses. Unset ⇒ no hashing (rows store `null`).
   - `GUESTBOOK_ADMIN_PASSWORD` - Password for `/guestbook/admin`. Unset ⇒ the admin page is permanently locked (no login possible). Rotating this value invalidates every existing admin session.
+  - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - OAuth client credentials for the Google Drive integration that powers `/strava`. Instead of setting these, you can drop the `client_secret_*.json` downloaded from Google Cloud Console at the project root — it's gitignored and read as a fallback by `src/lib/strava/google-drive.ts`.
+  - `GOOGLE_OWNER_EMAIL` - Your Google account email. `scripts/bootstrapGoogleDriveAuth.ts` refuses to save tokens unless the freshly-authorized account matches this. Prevents a leaked re-auth link from repointing the pipeline.
+  - `GOOGLE_DRIVE_RUNS_FOLDER_ID` - The Drive folder id containing exported Apple Watch `.fit` files. `scripts/syncRuns.ts` polls this folder.
+  - `GOOGLE_REDIRECT_URI` - Optional (default: `http://localhost/callback/`). Must be registered as an authorized redirect URI on the OAuth client in Google Cloud Console.
+  - `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` - OAuth client for the Strava social overlay (kudos, comments, activity titles) applied by `scripts/syncStravaOverlay.ts`.
+  - `STRAVA_OWNER_ATHLETE_ID` - Your Strava athlete id. `scripts/bootstrapStravaAuth.ts` refuses to save tokens unless the freshly-authorized athlete matches.
+  - `STRAVA_REDIRECT_URI` - Optional (default: `http://localhost/callback/`). Must be registered on the Strava app dashboard.
+  - `LOCAL_FIT_DIR` - Dev only. Directory scanned when `getParsedFit` sees a `local:<md5>` `drive_file_id` (rows inserted via `syncRuns.ts --file`). Skipped in production so a leaked env var can't smuggle in an arbitrary local path.
+  - `NEXT_PUBLIC_MAP_STYLE_URL` - Optional. Overrides the default inline OSM raster style used by `/strava` maps. Point at a hosted MapLibre style URL (e.g. `https://tiles.openfreemap.org/styles/positron`) or a `pmtiles://...` URL for a self-hosted vector basemap.
 
 ## Architecture Overview
 

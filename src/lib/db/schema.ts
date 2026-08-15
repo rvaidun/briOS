@@ -1,11 +1,13 @@
 import { sql } from "drizzle-orm";
 import {
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -65,9 +67,7 @@ export const artists = pgTable(
       .notNull()
       .default(sql`now()`),
   },
-  (t) => [
-    index("artists_name_idx").on(t.name),
-  ],
+  (t) => [index("artists_name_idx").on(t.name)],
 );
 
 export type Artist = typeof artists.$inferSelect;
@@ -95,9 +95,7 @@ export const albums = pgTable(
       .notNull()
       .default(sql`now()`),
   },
-  (t) => [
-    index("albums_name_idx").on(t.name),
-  ],
+  (t) => [index("albums_name_idx").on(t.name)],
 );
 
 export type Album = typeof albums.$inferSelect;
@@ -243,3 +241,76 @@ export const oauthTokens = pgTable("oauth_tokens", {
     .notNull()
     .default(sql`now()`),
 });
+
+// One row per Apple-Watch-exported .fit file. The raw file stays in Google
+// Drive (that's the object store); this table is a small summary index so the
+// /strava list can render fast and the Strava social overlay has something to
+// attach to. Full per-record streams are re-parsed on demand at detail-page
+// render time and cached (see src/lib/strava/fit-cache.ts).
+export const runs = pgTable(
+  "runs",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    sport: text("sport").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }).notNull(),
+    timezone: text("timezone"),
+
+    deviceManufacturer: text("device_manufacturer"),
+    deviceProduct: text("device_product"),
+
+    distanceM: real("distance_m").notNull(),
+    movingTimeS: integer("moving_time_s").notNull(),
+    elapsedTimeS: integer("elapsed_time_s").notNull(),
+    avgSpeedMps: real("avg_speed_mps"),
+    maxSpeedMps: real("max_speed_mps"),
+    avgHr: integer("avg_hr"),
+    maxHr: integer("max_hr"),
+    avgCadence: integer("avg_cadence"),
+    elevationGainM: real("elevation_gain_m"),
+    elevationLossM: real("elevation_loss_m"),
+    calories: integer("calories"),
+
+    // Simplified route geometry for the list view. Google encoded polyline
+    // (precision 5), Douglas–Peucker'd to ≤500 pts so rows stay small.
+    startLat: doublePrecision("start_lat"),
+    startLng: doublePrecision("start_lng"),
+    bbox: jsonb("bbox").$type<RunBbox | null>(),
+    polyline: text("polyline"),
+
+    // Google Drive is the object store for the raw .fit.
+    driveFileId: text("drive_file_id").notNull(),
+    driveModifiedTime: timestamp("drive_modified_time", { withTimezone: true }).notNull(),
+    driveMd5: text("drive_md5"),
+    driveName: text("drive_name"),
+
+    // Strava social overlay — populated by scripts/syncStravaOverlay.ts.
+    stravaActivityId: text("strava_activity_id"),
+    stravaName: text("strava_name"),
+    stravaDescription: text("strava_description"),
+    stravaKudos: integer("strava_kudos"),
+    stravaCommentCount: integer("strava_comment_count"),
+    stravaAchievementCount: integer("strava_achievement_count"),
+    stravaSyncedAt: timestamp("strava_synced_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [
+    uniqueIndex("runs_drive_file_uniq").on(t.driveFileId),
+    uniqueIndex("runs_drive_md5_uniq").on(t.driveMd5),
+    uniqueIndex("runs_strava_activity_uniq").on(t.stravaActivityId),
+    index("runs_started_at_idx").on(t.startedAt.desc()),
+    index("runs_sport_idx").on(t.sport),
+  ],
+);
+
+export type RunBbox = { n: number; s: number; e: number; w: number };
+export type Run = typeof runs.$inferSelect;
+export type NewRun = typeof runs.$inferInsert;

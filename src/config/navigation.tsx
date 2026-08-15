@@ -6,6 +6,7 @@ import { Headphones3 } from "@/components/icons/Headphones3";
 import { Home } from "@/components/icons/Home";
 import { Photo } from "@/components/icons/Photo";
 import { PinOnMap } from "@/components/icons/PinOnMap";
+import { Sneaker } from "@/components/icons/Sneaker";
 import { IconProps } from "@/components/icons/types";
 
 export interface NavigationItem {
@@ -65,6 +66,16 @@ export const navigationItems: NavigationItem[] = [
     icon: Photo,
     keywords: ["photos", "pictures", "album", "gallery"],
     isActive: (pathname) => pathname === "/photos",
+    section: "main",
+  },
+
+  {
+    id: "strava",
+    label: "Strava",
+    href: "/strava",
+    icon: Sneaker,
+    keywords: ["strava", "running", "runs", "fitness", "activity", "gps"],
+    isActive: (pathname) => pathname.startsWith("/strava"),
     section: "main",
   },
 

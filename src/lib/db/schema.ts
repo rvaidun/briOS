@@ -306,6 +306,10 @@ export const runs = pgTable(
     uniqueIndex("runs_drive_file_uniq").on(t.driveFileId),
     uniqueIndex("runs_drive_md5_uniq").on(t.driveMd5),
     uniqueIndex("runs_strava_activity_uniq").on(t.stravaActivityId),
+    // Dedup by the FIT session's own start timestamp — deterministic per
+    // activity even if the .fit is re-exported (which produces different bytes
+    // and therefore a different md5).
+    uniqueIndex("runs_started_at_uniq").on(t.startedAt),
     index("runs_started_at_idx").on(t.startedAt.desc()),
     index("runs_sport_idx").on(t.sport),
   ],

@@ -85,6 +85,13 @@
       "when": 1786821626045,
       "tag": "0011_handy_sage",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786837268404,
+      "tag": "0012_silly_joystick",
+      "breakpoints": true
     }
   ]
 }

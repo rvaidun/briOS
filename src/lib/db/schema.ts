@@ -309,3 +309,28 @@ export const runs = pgTable(
 export type RunBbox = { n: number; s: number; e: number; w: number };
 export type Run = typeof runs.$inferSelect;
 export type NewRun = typeof runs.$inferInsert;
+
+// Photos attached to a run by the admin. `url` points at an R2 object under
+// media.rahulvaidun.com/runs/<runId>/<hash>.<ext>. `position` orders the
+// strip on the detail page — 0 first.
+export const runPhotos = pgTable(
+  "run_photos",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    caption: text("caption"),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [index("run_photos_run_id_idx").on(t.runId, t.position)],
+);
+
+export type RunPhoto = typeof runPhotos.$inferSelect;
+export type NewRunPhoto = typeof runPhotos.$inferInsert;

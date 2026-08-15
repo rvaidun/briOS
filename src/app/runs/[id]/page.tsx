@@ -5,11 +5,13 @@ import { notFound } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
 import { createMetadata } from "@/lib/metadata";
 import { getParsedFit } from "@/lib/runs/fit-cache";
+import { listPhotosForRun } from "@/lib/runs/photos";
 import { getRunById } from "@/lib/runs/runs";
 import { computeSplits, MILE_METERS } from "@/lib/runs/splits";
 
 import { RunCharts } from "../RunCharts";
 import { RunMap } from "../RunMap";
+import { RunPhotoStrip } from "../RunPhotoStrip";
 import { RunSplitsTable } from "../RunSplitsTable";
 import { RunSummary } from "../RunSummary";
 
@@ -36,13 +38,15 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
   const run = await getRunById(id);
   if (!run) return notFound();
 
-  let parsed = null;
-  let parseError: string | null = null;
-  try {
-    parsed = await getParsedFit(run.driveFileId, run.driveModifiedTime.toISOString());
-  } catch (e) {
-    parseError = e instanceof Error ? e.message : String(e);
-  }
+  const [parsedResult, photos] = await Promise.all([
+    getParsedFit(run.driveFileId, run.driveModifiedTime.toISOString()).then(
+      (p) => ({ ok: true as const, value: p }),
+      (e) => ({ ok: false as const, err: e instanceof Error ? e.message : String(e) }),
+    ),
+    listPhotosForRun(run.id),
+  ]);
+  const parsed = parsedResult.ok ? parsedResult.value : null;
+  const parseError = parsedResult.ok ? null : parsedResult.err;
 
   const splits = parsed ? computeSplits(parsed.records, MILE_METERS) : [];
   const title = run.name ?? `${capitalize(run.sport)}`;
@@ -78,6 +82,8 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
         )}
 
         <RunSummary run={run} />
+
+        {photos.length > 0 && <RunPhotoStrip photos={photos} />}
 
         {parsed ? (
           <>

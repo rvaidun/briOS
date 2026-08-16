@@ -1,3 +1,4 @@
+import { Heart } from "@/components/icons/Heart";
 import type { Run } from "@/lib/db/schema";
 
 // Rolling KPI strip across the list page. Aggregates over whatever runs are
@@ -20,7 +21,14 @@ export function StatsStrip({ runs }: { runs: readonly Run[] }) {
       <Cell label="Total distance" value={`${totalMi.toFixed(1)} mi`} />
       <Cell label="Total time" value={formatHrs(totalMovingS)} />
       <Cell label="Avg pace" value={avgPaceSec ? `${formatPace(avgPaceSec)}/mi` : "—"} />
-      <Cell label="Avg HR" value={avgHr ? String(avgHr) : "—"} />
+      <Cell
+        labelNode={
+          <span className="inline-flex items-center gap-1">
+            <Heart size={12} /> avg
+          </span>
+        }
+        value={avgHr ? String(avgHr) : "—"}
+      />
       <Cell
         className="col-span-2 sm:hidden"
         label="Total elevation"
@@ -30,14 +38,26 @@ export function StatsStrip({ runs }: { runs: readonly Run[] }) {
   );
 }
 
-function Cell({ label, value, className }: { label: string; value: string; className?: string }) {
+function Cell({
+  label,
+  labelNode,
+  value,
+  className,
+}: {
+  label?: string;
+  labelNode?: React.ReactNode;
+  value: string;
+  className?: string;
+}) {
   return (
     <div
       className={`border-secondary min-w-0 rounded-md border bg-white p-4 dark:bg-white/5${
         className ? " " + className : ""
       }`}
     >
-      <div className="text-tertiary text-xs font-medium tracking-wide uppercase">{label}</div>
+      <div className="text-tertiary text-xs font-medium tracking-wide uppercase">
+        {labelNode ?? label}
+      </div>
       <div className="text-primary mt-1 truncate text-xl font-semibold tabular-nums md:text-2xl">
         {value}
       </div>

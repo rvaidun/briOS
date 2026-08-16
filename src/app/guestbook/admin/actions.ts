@@ -5,8 +5,6 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { db } from "@/lib/db/client";
-import { guestbookEntries } from "@/lib/db/schema";
 import {
   ADMIN_COOKIE,
   ADMIN_COOKIE_MAX_AGE,
@@ -14,6 +12,8 @@ import {
   passwordMatches,
   tokenFor,
 } from "@/lib/admin-auth";
+import { db } from "@/lib/db/client";
+import { guestbookEntries } from "@/lib/db/schema";
 
 export async function login(formData: FormData): Promise<void> {
   const password = formData.get("password");

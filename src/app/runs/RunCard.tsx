@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Heart } from "@/components/icons/Heart";
 import type { Run } from "@/lib/db/schema";
 
 import { RunHeartButton } from "./RunHeartButton";
@@ -43,18 +44,33 @@ export function RunCard({ run, heartCount = 0 }: { run: Run; heartCount?: number
           <Stat label="Distance" value={`${distanceMi.toFixed(2)} mi`} />
           <Stat label="Time" value={formatDuration(run.movingTimeS)} />
           <Stat label="Pace" value={pacePerMi ? `${formatPaceShort(pacePerMi)}/mi` : "—"} />
-          <Stat label="Avg HR" value={run.avgHr ? `${run.avgHr}` : "—"} />
+          <Stat
+            labelNode={
+              <span className="inline-flex items-center gap-1">
+                <Heart size={10} /> avg
+              </span>
+            }
+            value={run.avgHr ? `${run.avgHr}` : "—"}
+          />
         </div>
       </div>
     </Link>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  labelNode,
+  value,
+}: {
+  label?: string;
+  labelNode?: React.ReactNode;
+  value: string;
+}) {
   return (
     <div className="flex flex-col">
       <span className="text-quaternary text-[10px] font-medium tracking-wide uppercase">
-        {label}
+        {labelNode ?? label}
       </span>
       <span className="text-primary font-semibold">{value}</span>
     </div>

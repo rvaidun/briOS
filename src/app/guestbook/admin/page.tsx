@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 
 import type { GuestbookEntryView } from "@/components/guestbook/types";
 import { TopBar } from "@/components/TopBar";
-import { listGuestbookEntries } from "@/lib/db/guestbook";
 import { isAdmin } from "@/lib/admin-auth";
+import { listGuestbookEntries } from "@/lib/db/guestbook";
 import { createMetadata } from "@/lib/metadata";
 
 import { EntryList } from "./EntryList";

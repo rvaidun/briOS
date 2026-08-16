@@ -64,11 +64,18 @@ export async function uploadPhoto(formData: FormData): Promise<void> {
   const captionRaw = formData.get("caption");
   if (typeof runId !== "string" || !runId) throw new Error("Missing runId");
   if (!(file instanceof File) || file.size === 0) throw new Error("Missing file");
-  if (file.size > MAX_UPLOAD_BYTES) throw new Error(`File too large (max ${MAX_UPLOAD_BYTES / 1024 / 1024}MB)`);
+  if (file.size > MAX_UPLOAD_BYTES)
+    throw new Error(`File too large (max ${MAX_UPLOAD_BYTES / 1024 / 1024}MB)`);
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const url = await uploadRunPhotoToR2(runId, bytes, file.name, file.type || "application/octet-stream");
-  const caption = typeof captionRaw === "string" && captionRaw.trim().length > 0 ? captionRaw.trim() : null;
+  const url = await uploadRunPhotoToR2(
+    runId,
+    bytes,
+    file.name,
+    file.type || "application/octet-stream",
+  );
+  const caption =
+    typeof captionRaw === "string" && captionRaw.trim().length > 0 ? captionRaw.trim() : null;
   await insertPhoto({ runId, url, caption });
   revalidatePath(`/runs/${runId}`);
   revalidatePath("/runs/admin");

@@ -122,7 +122,7 @@ function PhotoManager({ runId, photos }: { runId: string; photos: readonly RunPh
                     await deletePhoto(p.id);
                   });
                 }}
-                className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100"
+                className="absolute top-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100"
               >
                 ×
               </button>

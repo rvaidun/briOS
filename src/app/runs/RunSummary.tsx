@@ -1,3 +1,4 @@
+import { Heart } from "@/components/icons/Heart";
 import type { Run } from "@/lib/db/schema";
 
 // Big hero KPI row for the detail page.
@@ -11,17 +12,41 @@ export function RunSummary({ run }: { run: Run }) {
       <Cell label="Distance" value={`${distanceMi.toFixed(2)} mi`} />
       <Cell label="Time" value={formatDuration(run.movingTimeS)} />
       <Cell label="Pace" value={pace ? `${formatPace(pace)}/mi` : "—"} />
-      <Cell label="Avg HR" value={run.avgHr ? String(run.avgHr) : "—"} />
-      <Cell label="Max HR" value={run.maxHr ? String(run.maxHr) : "—"} />
+      <Cell
+        labelNode={
+          <span className="inline-flex items-center gap-1">
+            <Heart size={11} /> avg
+          </span>
+        }
+        value={run.avgHr ? String(run.avgHr) : "—"}
+      />
+      <Cell
+        labelNode={
+          <span className="inline-flex items-center gap-1">
+            <Heart size={11} /> max
+          </span>
+        }
+        value={run.maxHr ? String(run.maxHr) : "—"}
+      />
       <Cell label="Elev gain" value={`+${elevFt.toLocaleString()} ft`} />
     </div>
   );
 }
 
-function Cell({ label, value }: { label: string; value: string }) {
+function Cell({
+  label,
+  labelNode,
+  value,
+}: {
+  label?: string;
+  labelNode?: React.ReactNode;
+  value: string;
+}) {
   return (
     <div className="border-secondary min-w-0 rounded-md border bg-white px-3 py-3 dark:bg-white/5">
-      <div className="text-tertiary text-[10px] font-medium tracking-wide uppercase">{label}</div>
+      <div className="text-tertiary text-[10px] font-medium tracking-wide uppercase">
+        {labelNode ?? label}
+      </div>
       <div className="text-primary mt-0.5 truncate text-lg font-semibold tabular-nums md:text-xl">
         {value}
       </div>

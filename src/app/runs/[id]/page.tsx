@@ -9,13 +9,13 @@ import { getParsedFit } from "@/lib/runs/fit-cache";
 import { listPhotosForRun } from "@/lib/runs/photos";
 import { getRunById } from "@/lib/runs/runs";
 import { computeSplits, MILE_METERS } from "@/lib/runs/splits";
+import { buildTelemetry } from "@/lib/runs/telemetry";
 
-import { RunCharts } from "../RunCharts";
 import { RunHeartButton } from "../RunHeartButton";
-import { RunMap } from "../RunMap";
 import { RunPhotoStrip } from "../RunPhotoStrip";
 import { RunSplitsTable } from "../RunSplitsTable";
 import { RunSummary } from "../RunSummary";
+import { RunTelemetry } from "../RunTelemetry";
 
 export const revalidate = 3600;
 
@@ -52,6 +52,7 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
   const parseError = parsedResult.ok ? null : parsedResult.err;
 
   const splits = parsed ? computeSplits(parsed.records, MILE_METERS) : [];
+  const telemetry = parsed ? buildTelemetry(parsed.records) : null;
   const title = run.name ?? `${capitalize(run.sport)}`;
 
   return (
@@ -75,10 +76,8 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
           )}
         </div>
 
-        {run.polyline && run.bbox ? (
-          <div className="border-secondary h-[360px] overflow-hidden rounded-lg border md:h-[420px]">
-            <RunMap polyline={run.polyline} bbox={run.bbox} className="h-full w-full" />
-          </div>
+        {run.polyline && run.bbox && telemetry ? (
+          <RunTelemetry polyline={run.polyline} bbox={run.bbox} telemetry={telemetry} />
         ) : (
           <div className="border-secondary flex h-40 items-center justify-center rounded-lg border bg-white text-sm text-neutral-400 dark:bg-white/5">
             No GPS trace (indoor)
@@ -90,13 +89,10 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
         {photos.length > 0 && <RunPhotoStrip photos={photos} />}
 
         {parsed ? (
-          <>
-            <RunCharts records={parsed.records} />
-            <div className="flex flex-col gap-3">
-              <h2 className="text-primary text-sm font-semibold">Splits (per mile)</h2>
-              <RunSplitsTable splits={splits} />
-            </div>
-          </>
+          <div className="flex flex-col gap-3">
+            <h2 className="text-primary text-sm font-semibold">Splits (per mile)</h2>
+            <RunSplitsTable splits={splits} />
+          </div>
         ) : (
           <div className="border-secondary rounded-md border border-dashed bg-white p-6 text-center text-xs text-neutral-500 dark:bg-white/5">
             <p className="font-medium">Splits + charts unavailable</p>

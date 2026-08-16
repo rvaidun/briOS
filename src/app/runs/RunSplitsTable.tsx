@@ -1,8 +1,11 @@
+import { Heart } from "@/components/icons/Heart";
 import { formatPace, type Split } from "@/lib/runs/splits";
 
-// Per-mile splits, with a horizontal pace bar for at-a-glance comparison.
-// The bar is scaled to the fastest and slowest split in the set — a narrow
-// spread means an even effort, wide means a burnout or hills.
+// Per-mile splits. The bar's LENGTH shows how this split's pace compares to
+// the fastest and slowest splits in this run (fastest = full width). The
+// COLOR is an independent gradient across the same spread: green (fastest)
+// → yellow → red (slowest). Together they give at-a-glance answers to both
+// "was I even?" (bar widths) and "which splits were the tough ones?" (color).
 export function RunSplitsTable({ splits }: { splits: readonly Split[] }) {
   if (splits.length === 0) return null;
 
@@ -17,11 +20,15 @@ export function RunSplitsTable({ splits }: { splits: readonly Split[] }) {
         <span>Mi</span>
         <span>Pace</span>
         <span className="text-right">Time</span>
-        <span className="text-right">HR</span>
+        <span className="flex items-center justify-end">
+          <Heart size={12} />
+        </span>
         <span className="text-right">Elev</span>
       </div>
       {splits.map((s) => {
-        const barPct = 100 - ((s.paceSecPerUnit - fastest) / span) * 100;
+        const relPos = (s.paceSecPerUnit - fastest) / span; // 0 = fastest, 1 = slowest
+        const barPct = 100 - relPos * 100;
+        const color = paceGradientColor(relPos);
         const isPartial = s.distanceM < 1609.344 * 0.99;
         return (
           <div
@@ -34,8 +41,11 @@ export function RunSplitsTable({ splits }: { splits: readonly Split[] }) {
             <div className="flex items-center gap-3">
               <div className="bg-secondary relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full dark:bg-white/10">
                 <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-orange-500 dark:bg-orange-400"
-                  style={{ width: `${Math.max(4, Math.min(100, barPct))}%` }}
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{
+                    width: `${Math.max(4, Math.min(100, barPct))}%`,
+                    backgroundColor: color,
+                  }}
                 />
               </div>
               <span className="text-primary flex-none text-xs font-semibold tabular-nums">
@@ -54,6 +64,15 @@ export function RunSplitsTable({ splits }: { splits: readonly Split[] }) {
       })}
     </div>
   );
+}
+
+// Green → yellow → red across [0, 1]. Interpolates in HSL for a smoother
+// perceptual gradient than lerping RGB channels directly.
+function paceGradientColor(t: number): string {
+  const clamped = Math.max(0, Math.min(1, t));
+  // 130° (green) → 55° (yellow) → 0° (red)
+  const hue = 130 - clamped * 130;
+  return `hsl(${hue.toFixed(0)}, 70%, 45%)`;
 }
 
 function formatSeconds(totalS: number): string {

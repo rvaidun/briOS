@@ -3,9 +3,10 @@
 // bucket the rest of the site uses (media.rahulvaidun.com), so URLs are
 // stable and content-addressed.
 
+import { createHash } from "node:crypto";
+
 import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { asc, eq, inArray, sql as raw } from "drizzle-orm";
-import { createHash } from "node:crypto";
 
 import { db } from "@/lib/db/client";
 import { type NewRunPhoto, type RunPhoto, runPhotos } from "@/lib/db/schema";
@@ -70,7 +71,9 @@ export async function uploadRunPhotoToR2(
   contentType: string,
 ): Promise<string> {
   if (!isR2Configured()) {
-    throw new Error("R2 is not configured — set R2_S3_API_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_URL");
+    throw new Error(
+      "R2 is not configured — set R2_S3_API_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_PUBLIC_URL",
+    );
   }
   const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 32);
   const ext = extensionFor(filename, contentType);

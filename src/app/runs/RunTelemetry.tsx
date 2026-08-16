@@ -29,7 +29,7 @@ export function RunTelemetry({
   const [cursorIndex, setCursorIndex] = useState<number | null>(null);
   const [mapCursor, setMapCursor] = useState<CursorPoint | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState<FlyoverSpeed>(10);
+  const [speed, setSpeed] = useState<FlyoverSpeed>(60);
 
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef<number | null>(null);
@@ -104,7 +104,7 @@ export function RunTelemetry({
         <RunFlyoverControls
           playing={playing}
           speed={speed}
-          elapsedS={bucketCursor?.elapsedS ?? 0}
+          elapsedS={playing ? playHeadSRef.current : (bucketCursor?.elapsedS ?? 0)}
           totalElapsedS={totalS}
           onToggle={() => setPlaying((p) => !p)}
           onSpeedChange={setSpeed}
@@ -114,6 +114,11 @@ export function RunTelemetry({
             playHeadSRef.current = 0;
             const first = flyoverTrack[0];
             setMapCursor(first ? { lat: first.lat, lng: first.lng } : null);
+          }}
+          onSeek={(elapsedS) => {
+            playHeadSRef.current = elapsedS;
+            setCursorIndex(nearestBucketIndexByElapsed(pts, elapsedS));
+            setMapCursor(sampleFlyover(flyoverTrack, elapsedS));
           }}
         />
       )}

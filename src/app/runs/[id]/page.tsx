@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { TopBar } from "@/components/TopBar";
+import { getHeartCount } from "@/lib/hearts";
 import { createMetadata } from "@/lib/metadata";
 import { getParsedFit } from "@/lib/runs/fit-cache";
 import { listPhotosForRun } from "@/lib/runs/photos";
@@ -10,6 +11,7 @@ import { getRunById } from "@/lib/runs/runs";
 import { computeSplits, MILE_METERS } from "@/lib/runs/splits";
 
 import { RunCharts } from "../RunCharts";
+import { RunHeartButton } from "../RunHeartButton";
 import { RunMap } from "../RunMap";
 import { RunPhotoStrip } from "../RunPhotoStrip";
 import { RunSplitsTable } from "../RunSplitsTable";
@@ -38,12 +40,13 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
   const run = await getRunById(id);
   if (!run) return notFound();
 
-  const [parsedResult, photos] = await Promise.all([
+  const [parsedResult, photos, heartCount] = await Promise.all([
     getParsedFit(run.driveFileId, run.driveModifiedTime.toISOString()).then(
       (p) => ({ ok: true as const, value: p }),
       (e) => ({ ok: false as const, err: e instanceof Error ? e.message : String(e) }),
     ),
     listPhotosForRun(run.id),
+    getHeartCount(`run:${run.id}`),
   ]);
   const parsed = parsedResult.ok ? parsedResult.value : null;
   const parseError = parsedResult.ok ? null : parsedResult.err;
@@ -58,6 +61,7 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
           ← Runs
         </Link>
         <div className="text-primary flex-1 truncate text-sm font-semibold">{title}</div>
+        <RunHeartButton id={run.id} initialCount={heartCount} size="md" />
       </TopBar>
 
       <div

@@ -2,12 +2,13 @@ import Link from "next/link";
 
 import type { Run } from "@/lib/db/schema";
 
+import { RunHeartButton } from "./RunHeartButton";
 import { RunMiniMap } from "./RunMiniMap";
 
 // Row for the /runs list. MapLibre mini-map (lazy-mounted via
 // IntersectionObserver in RunMiniMap) draws the route over base tiles;
 // falls back to a placeholder when the run has no GPS trace.
-export function RunCard({ run }: { run: Run }) {
+export function RunCard({ run, heartCount = 0 }: { run: Run; heartCount?: number }) {
   const distanceMi = run.distanceM / 1609.344;
   const pacePerMi = run.distanceM > 0 ? run.movingTimeS / (run.distanceM / 1609.344) : 0;
   const hasGeo = Boolean(run.polyline && run.bbox);
@@ -28,11 +29,14 @@ export function RunCard({ run }: { run: Run }) {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="min-w-0">
-          <div className="text-primary truncate text-sm font-semibold">
-            {run.name ?? defaultTitle(run)}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-primary truncate text-sm font-semibold">
+              {run.name ?? defaultTitle(run)}
+            </div>
+            <div className="text-tertiary text-xs">{formatDateLine(run.startedAt)}</div>
           </div>
-          <div className="text-tertiary text-xs">{formatDateLine(run.startedAt)}</div>
+          <RunHeartButton id={run.id} initialCount={heartCount} />
         </div>
 
         <div className="text-secondary grid grid-cols-4 gap-2 text-xs tabular-nums sm:text-[13px]">

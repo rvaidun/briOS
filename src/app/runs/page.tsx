@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TopBar } from "@/components/TopBar";
+import { getHeartCounts } from "@/lib/hearts";
 import { createMetadata } from "@/lib/metadata";
 import { listRuns } from "@/lib/runs/runs";
 
@@ -20,6 +21,7 @@ export const revalidate = 3600;
 
 export default async function RunsPage() {
   const runs = await listRuns(100);
+  const heartCounts = await getHeartCounts(runs.map((r) => `run:${r.id}`));
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
@@ -43,7 +45,7 @@ export default async function RunsPage() {
             <h2 className="text-primary text-sm font-semibold">Runs</h2>
             <div className="flex flex-col gap-3">
               {runs.map((r) => (
-                <RunCard key={r.id} run={r} />
+                <RunCard key={r.id} run={r} heartCount={heartCounts[`run:${r.id}`] ?? 0} />
               ))}
             </div>
           </div>

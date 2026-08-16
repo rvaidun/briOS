@@ -161,13 +161,14 @@ function applyFlyoverMode(
         // back to pitched 2D — pitch alone still reads as "flying".
       }
     }
-    map.easeTo({
-      pitch: 55,
-      zoom: Math.max(map.getZoom(), 15),
-      center: cursor ? [cursor.lng, cursor.lat] : undefined,
-      duration: 700,
-      essential: true,
-    });
+    // Snap camera to flyover state instantly. Using easeTo here would get
+    // interrupted by the ~60Hz setCenter follow that starts on the very next
+    // rAF frame (setCenter internally calls jumpTo, which cancels any
+    // in-progress transition), leaving the map stuck at ~5° of pitch. Snap
+    // is jarring by 1 frame but the follow motion covers it.
+    map.setPitch(55);
+    map.setZoom(Math.max(map.getZoom(), 15));
+    if (cursor) map.setCenter([cursor.lng, cursor.lat]);
   } else {
     if (map.getTerrain()) {
       try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import {
   formatElapsed,
@@ -11,26 +11,33 @@ import {
 import { cn } from "@/lib/utils";
 
 // Single overlay chart with pace, HR, cadence lines and an elevation area
-// beneath. Each metric has its own Y-axis scale so a scan across the chart
-// shows relative trend for each; absolute values live in the tooltip.
+// beneath. Each metric gets its own stacked vertical BAND (so the three lines
+// don't visually overlap even though they share the X axis); bands reflow
+// when metrics are toggled off. Elevation is drawn as a full-width area
+// behind all lanes.
 //
 // Cursor is external state (owned by RunTelemetry) so the map marker can
 // track the same index. `onCursorChange(null)` on pointer leave.
 
 const CHART_W = 600;
-const CHART_H = 200;
+const CHART_H = 220;
 const PAD_L = 40;
 const PAD_R = 40;
-const PAD_T = 12;
+const PAD_T = 8;
 const PAD_B = 22;
 
 type MetricKey = "pace" | "hr" | "cadence";
 
-const METRIC_META: Record<MetricKey, { label: string; color: string; unit: string }> = {
-  pace: { label: "Pace", color: "#f97316", unit: "/mi" },
-  hr: { label: "Heart Rate", color: "#ef4444", unit: "bpm" },
-  cadence: { label: "Cadence", color: "#d946ef", unit: "spm" },
+const METRIC_META: Record<
+  MetricKey,
+  { label: string; color: string; unit: string; dataKey: keyof TelemetryPoint; invert?: boolean }
+> = {
+  pace: { label: "Pace", color: "#f97316", unit: "/mi", dataKey: "paceSecPerMi", invert: true },
+  hr: { label: "Heart Rate", color: "#ef4444", unit: "bpm", dataKey: "hr" },
+  cadence: { label: "Cadence", color: "#d946ef", unit: "spm", dataKey: "cadence" },
 };
+
+const METRIC_ORDER: MetricKey[] = ["pace", "hr", "cadence"];
 
 export function RunOverlayChart({
   telemetry,
@@ -46,41 +53,75 @@ export function RunOverlayChart({
     hr: true,
     cadence: true,
   });
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const pts = telemetry.points;
   const { totalDistanceMi } = telemetry;
 
   const scales = useMemo(() => buildScales(pts), [pts]);
 
+  const visible = METRIC_ORDER.filter((k) => enabled[k] && scales[k] != null);
+
   if (pts.length < 2) return null;
 
+  // Bands: the plot area (CHART_H - PAD_T - PAD_B) is split evenly across
+  // whichever metrics are currently visible. Each metric normalizes into its
+  // own [bandTop, bandBottom] slice.
+  const plotTop = PAD_T;
+  const plotBottom = CHART_H - PAD_B;
+  const plotH = plotBottom - plotTop;
+  const bandCount = Math.max(visible.length, 1);
+  const bandH = plotH / bandCount;
+  const bandPad = Math.min(6, bandH * 0.15); // interior padding so lines don't kiss the band edge
+
+  const bandFor = (metric: MetricKey): { top: number; bottom: number } => {
+    const i = visible.indexOf(metric);
+    if (i === -1) return { top: plotTop, bottom: plotBottom };
+    return {
+      top: plotTop + i * bandH + bandPad,
+      bottom: plotTop + (i + 1) * bandH - bandPad,
+    };
+  };
+
   const xToPx = (mi: number) => PAD_L + (mi / totalDistanceMi) * (CHART_W - PAD_L - PAD_R);
-  const pxToX = (px: number) => ((px - PAD_L) / (CHART_W - PAD_L - PAD_R)) * totalDistanceMi;
-  const yToPx = (norm01: number) => PAD_T + (1 - norm01) * (CHART_H - PAD_T - PAD_B);
+  const yFor = (metric: MetricKey, value: number): number => {
+    const scale = scales[metric];
+    if (!scale) return 0;
+    const band = bandFor(metric);
+    const norm = scale.norm(value); // 0 = bad end, 1 = good end (inverted metrics already flipped)
+    // Draw the good end at the TOP of the band.
+    return band.bottom - norm * (band.bottom - band.top);
+  };
 
-  // Elevation area (drawn first so all metric lines sit on top).
-  const elevPath = scales.alt ? buildAreaPath(pts, "altitudeM", scales.alt, xToPx, yToPx) : null;
+  // Elevation area spans the full plot height and is drawn behind the lanes
+  // as a compressed grey wash (30% of total plot height, anchored to bottom).
+  const elevPath = scales.alt
+    ? buildAreaPath(pts, "altitudeM", scales.alt, xToPx, plotBottom, plotBottom - plotH * 0.3)
+    : null;
 
-  const lines: { key: MetricKey; d: string }[] = [];
-  if (enabled.pace && scales.pace) {
-    lines.push({ key: "pace", d: buildLinePath(pts, "paceSecPerMi", scales.pace, xToPx, yToPx) });
-  }
-  if (enabled.hr && scales.hr) {
-    lines.push({ key: "hr", d: buildLinePath(pts, "hr", scales.hr, xToPx, yToPx) });
-  }
-  if (enabled.cadence && scales.cad) {
-    lines.push({ key: "cadence", d: buildLinePath(pts, "cadence", scales.cad, xToPx, yToPx) });
-  }
+  const lines = visible.map((key) => ({
+    key,
+    d: buildLinePath(pts, METRIC_META[key].dataKey, (v) => yFor(key, v), xToPx),
+  }));
 
   const cursor =
     cursorIndex != null && cursorIndex >= 0 && cursorIndex < pts.length ? pts[cursorIndex] : null;
   const cursorX = cursor ? xToPx(cursor.distanceMi) : null;
 
   function handlePointer(e: React.PointerEvent<SVGSVGElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    // Convert to SVG viewBox coordinates.
-    const px = ((e.clientX - rect.left) / rect.width) * CHART_W;
-    const mi = pxToX(px);
+    const svg = svgRef.current;
+    if (!svg) return;
+    // Transform screen coords → SVG user-space coords. This is the correct
+    // way regardless of preserveAspectRatio / container aspect stretch —
+    // dividing by rect.width alone is wrong when the viewBox letterboxes.
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const svgP = pt.matrixTransform(ctm.inverse());
+
+    const mi = ((svgP.x - PAD_L) / (CHART_W - PAD_L - PAD_R)) * totalDistanceMi;
     // Nearest point by distance (points are ordered by distance).
     let lo = 0;
     let hi = pts.length - 1;
@@ -101,6 +142,7 @@ export function RunOverlayChart({
   return (
     <div className="border-secondary flex flex-col gap-3 rounded-md border bg-white p-4 dark:bg-white/5">
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${CHART_W} ${CHART_H}`}
         className="h-56 w-full touch-none select-none md:h-64"
         onPointerMove={handlePointer}
@@ -111,30 +153,47 @@ export function RunOverlayChart({
           <path d={elevPath} className="fill-neutral-200/60 dark:fill-white/10" stroke="none" />
         )}
 
+        {/* Band separators — subtle horizontal rules between metrics */}
+        {visible.slice(1).map((key) => {
+          const i = visible.indexOf(key);
+          const y = plotTop + i * bandH;
+          return (
+            <line
+              key={`sep-${key}`}
+              x1={PAD_L}
+              x2={CHART_W - PAD_R}
+              y1={y}
+              y2={y}
+              className="stroke-neutral-100 dark:stroke-white/5"
+              strokeWidth={1}
+              strokeDasharray="2 3"
+            />
+          );
+        })}
+
         {/* X-axis baseline */}
         <line
           x1={PAD_L}
           x2={CHART_W - PAD_R}
-          y1={CHART_H - PAD_B}
-          y2={CHART_H - PAD_B}
+          y1={plotBottom}
+          y2={plotBottom}
           className="stroke-neutral-200 dark:stroke-white/10"
           strokeWidth={1}
         />
 
-        {/* X-axis mile ticks + labels */}
         {xAxisTicks.map((mi) => (
           <g key={mi}>
             <line
               x1={xToPx(mi)}
               x2={xToPx(mi)}
-              y1={CHART_H - PAD_B}
-              y2={CHART_H - PAD_B + 4}
+              y1={plotBottom}
+              y2={plotBottom + 4}
               className="stroke-neutral-300 dark:stroke-white/20"
               strokeWidth={1}
             />
             <text
               x={xToPx(mi)}
-              y={CHART_H - PAD_B + 14}
+              y={plotBottom + 14}
               className="fill-neutral-500 text-[10px] tabular-nums dark:fill-neutral-400"
               textAnchor="middle"
             >
@@ -142,6 +201,24 @@ export function RunOverlayChart({
             </text>
           </g>
         ))}
+
+        {/* Per-band labels on the left, tiny */}
+        {visible.map((key) => {
+          const band = bandFor(key);
+          return (
+            <text
+              key={`label-${key}`}
+              x={PAD_L - 6}
+              y={(band.top + band.bottom) / 2}
+              className="text-[9px] font-medium tabular-nums"
+              fill={METRIC_META[key].color}
+              textAnchor="end"
+              dominantBaseline="middle"
+            >
+              {METRIC_META[key].label.slice(0, 3).toLowerCase()}
+            </text>
+          );
+        })}
 
         {lines.map((line) => (
           <path
@@ -161,36 +238,25 @@ export function RunOverlayChart({
             <line
               x1={cursorX}
               x2={cursorX}
-              y1={PAD_T}
-              y2={CHART_H - PAD_B}
+              y1={plotTop}
+              y2={plotBottom}
               className="stroke-neutral-500 dark:stroke-white/40"
               strokeWidth={1}
               strokeDasharray="3 2"
             />
-            {enabled.pace && scales.pace && cursor?.paceSecPerMi != null && (
-              <circle
-                cx={cursorX}
-                cy={yToPx(scales.pace.norm(cursor.paceSecPerMi))}
-                r={3}
-                fill={METRIC_META.pace.color}
-              />
-            )}
-            {enabled.hr && scales.hr && cursor?.hr != null && (
-              <circle
-                cx={cursorX}
-                cy={yToPx(scales.hr.norm(cursor.hr))}
-                r={3}
-                fill={METRIC_META.hr.color}
-              />
-            )}
-            {enabled.cadence && scales.cad && cursor?.cadence != null && (
-              <circle
-                cx={cursorX}
-                cy={yToPx(scales.cad.norm(cursor.cadence))}
-                r={3}
-                fill={METRIC_META.cadence.color}
-              />
-            )}
+            {visible.map((key) => {
+              const value = cursor?.[METRIC_META[key].dataKey];
+              if (typeof value !== "number") return null;
+              return (
+                <circle
+                  key={`dot-${key}`}
+                  cx={cursorX}
+                  cy={yFor(key, value)}
+                  r={3}
+                  fill={METRIC_META[key].color}
+                />
+              );
+            })}
           </>
         )}
       </svg>
@@ -198,7 +264,7 @@ export function RunOverlayChart({
       {cursor && <CursorTooltip cursor={cursor} enabled={enabled} />}
 
       <div className="flex flex-wrap items-center justify-center gap-4 pt-1">
-        {(Object.keys(METRIC_META) as MetricKey[]).map((key) => (
+        {METRIC_ORDER.map((key) => (
           <MetricToggle
             key={key}
             label={METRIC_META[key].label}
@@ -277,13 +343,13 @@ type Scale = { min: number; max: number; norm: (v: number) => number };
 function buildScales(pts: readonly TelemetryPoint[]): {
   pace: Scale | null;
   hr: Scale | null;
-  cad: Scale | null;
+  cadence: Scale | null;
   alt: Scale | null;
 } {
   return {
     pace: buildScale(pts, "paceSecPerMi", { invert: true }),
     hr: buildScale(pts, "hr"),
-    cad: buildScale(pts, "cadence"),
+    cadence: buildScale(pts, "cadence"),
     alt: buildScale(pts, "altitudeM"),
   };
 }
@@ -310,18 +376,17 @@ function buildScale(
 
 function buildLinePath(
   pts: readonly TelemetryPoint[],
-  key: keyof TelemetryPoint,
-  scale: Scale,
+  dataKey: keyof TelemetryPoint,
+  yForValue: (v: number) => number,
   xToPx: (mi: number) => number,
-  yToPx: (norm: number) => number,
 ): string {
   let d = "";
   let started = false;
   for (const p of pts) {
-    const raw = p[key];
+    const raw = p[dataKey];
     if (typeof raw !== "number") continue;
     const x = xToPx(p.distanceMi);
-    const y = yToPx(scale.norm(raw));
+    const y = yForValue(raw);
     d += (started ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
     started = true;
   }
@@ -333,12 +398,10 @@ function buildAreaPath(
   key: keyof TelemetryPoint,
   scale: Scale,
   xToPx: (mi: number) => number,
-  yToPx: (norm: number) => number,
+  bottomY: number,
+  topY: number,
 ): string {
-  // Elevation is drawn as a subtle grey area from the baseline up to the line.
-  // We compress its vertical range so it sits behind the metric lines instead
-  // of competing with them: 0..0.35 of the chart height.
-  const compress = (n: number) => n * 0.35;
+  const range = bottomY - topY;
   let d = "";
   let started = false;
   let firstX: number | null = null;
@@ -347,7 +410,7 @@ function buildAreaPath(
     const raw = p[key];
     if (typeof raw !== "number") continue;
     const x = xToPx(p.distanceMi);
-    const y = yToPx(compress(scale.norm(raw)));
+    const y = bottomY - scale.norm(raw) * range;
     if (!started) {
       firstX = x;
       d += `M${x.toFixed(1)} ${y.toFixed(1)}`;
@@ -358,8 +421,7 @@ function buildAreaPath(
     lastX = x;
   }
   if (started && firstX != null && lastX != null) {
-    const baseY = yToPx(0);
-    d += `L${lastX.toFixed(1)} ${baseY.toFixed(1)} L${firstX.toFixed(1)} ${baseY.toFixed(1)} Z`;
+    d += `L${lastX.toFixed(1)} ${bottomY.toFixed(1)} L${firstX.toFixed(1)} ${bottomY.toFixed(1)} Z`;
   }
   return d;
 }

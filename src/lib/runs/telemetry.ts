@@ -131,6 +131,28 @@ export function buildTelemetry(records: readonly FitRecord[], buckets = 200): Te
   return { points, totalDistanceMi, totalElapsedS };
 }
 
+// Dense 1Hz (or per-record) lat/lng track for the flyover playback. Payload
+// is much smaller than full telemetry (three numbers per point) but has ~10×
+// the resolution, which is what stops the map cursor from lurching between
+// bucket centers during playback. Skips records without a position fix.
+export type FlyoverPoint = { elapsedS: number; lat: number; lng: number };
+
+export function buildFlyoverTrack(records: readonly FitRecord[]): FlyoverPoint[] {
+  const first = records.find((r) => r.lat !== null && r.lng !== null);
+  if (!first) return [];
+  const t0 = first.timestamp.getTime();
+  const out: FlyoverPoint[] = [];
+  for (const r of records) {
+    if (r.lat === null || r.lng === null) continue;
+    out.push({
+      elapsedS: (r.timestamp.getTime() - t0) / 1000,
+      lat: r.lat,
+      lng: r.lng,
+    });
+  }
+  return out;
+}
+
 export function formatElapsed(s: number): string {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);

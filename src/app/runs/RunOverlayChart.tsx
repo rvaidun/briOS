@@ -42,10 +42,14 @@ const METRIC_ORDER: MetricKey[] = ["pace", "hr", "cadence"];
 export function RunOverlayChart({
   telemetry,
   cursorIndex,
+  hoverLocked = false,
   onCursorChange,
 }: {
   telemetry: Telemetry;
   cursorIndex: number | null;
+  // When true (e.g. flyover is playing), pointer events on the SVG are
+  // ignored — the playback owns the cursor and hover shouldn't clobber it.
+  hoverLocked?: boolean;
   onCursorChange: (idx: number | null) => void;
 }) {
   const [enabled, setEnabled] = useState<Record<MetricKey, boolean>>({
@@ -109,6 +113,7 @@ export function RunOverlayChart({
   const cursorX = cursor ? xToPx(cursor.distanceMi) : null;
 
   function handlePointer(e: React.PointerEvent<SVGSVGElement>) {
+    if (hoverLocked) return;
     const svg = svgRef.current;
     if (!svg) return;
     // Transform screen coords → SVG user-space coords. This is the correct
@@ -144,10 +149,16 @@ export function RunOverlayChart({
       <svg
         ref={svgRef}
         viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-        className="h-56 w-full touch-none select-none md:h-64"
+        className={cn(
+          "h-56 w-full touch-none select-none md:h-64",
+          hoverLocked && "cursor-not-allowed",
+        )}
         onPointerMove={handlePointer}
         onPointerDown={handlePointer}
-        onPointerLeave={() => onCursorChange(null)}
+        onPointerLeave={() => {
+          if (hoverLocked) return;
+          onCursorChange(null);
+        }}
       >
         {elevPath && (
           <path d={elevPath} className="fill-neutral-200/60 dark:fill-white/10" stroke="none" />

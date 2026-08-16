@@ -9,7 +9,7 @@ import { getParsedFit } from "@/lib/runs/fit-cache";
 import { listPhotosForRun } from "@/lib/runs/photos";
 import { getRunById } from "@/lib/runs/runs";
 import { computeSplits, MILE_METERS } from "@/lib/runs/splits";
-import { buildTelemetry } from "@/lib/runs/telemetry";
+import { buildFlyoverTrack, buildTelemetry } from "@/lib/runs/telemetry";
 
 import { RunHeartButton } from "../RunHeartButton";
 import { RunPhotoStrip } from "../RunPhotoStrip";
@@ -53,6 +53,7 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
 
   const splits = parsed ? computeSplits(parsed.records, MILE_METERS) : [];
   const telemetry = parsed ? buildTelemetry(parsed.records) : null;
+  const flyoverTrack = parsed ? buildFlyoverTrack(parsed.records) : [];
   const title = run.name ?? `${capitalize(run.sport)}`;
 
   return (
@@ -77,7 +78,12 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
         </div>
 
         {run.polyline && run.bbox && telemetry ? (
-          <RunTelemetry polyline={run.polyline} bbox={run.bbox} telemetry={telemetry} />
+          <RunTelemetry
+            polyline={run.polyline}
+            bbox={run.bbox}
+            telemetry={telemetry}
+            flyoverTrack={flyoverTrack}
+          />
         ) : (
           <div className="border-secondary flex h-40 items-center justify-center rounded-lg border bg-white text-sm text-neutral-400 dark:bg-white/5">
             No GPS trace (indoor)

@@ -26,12 +26,11 @@ export type RunMapProps = {
 const CURSOR_SOURCE = "run-cursor";
 const CURSOR_LAYER = "run-cursor-dot";
 const CURSOR_HALO_LAYER = "run-cursor-halo";
-const TERRAIN_SOURCE = "maptiler-dem";
 
-// MapTiler Terrain-RGB v2 — free tier, 100k tile requests / month. Client-
-// visible env var; unset ⇒ we skip terrain entirely (still flat pseudo-3D via
-// pitch).
-const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
+// Real 3D via MapTiler Terrain-RGB is temporarily disabled — MapLibre v6
+// throws an undefined-shaderPreludeCode error after ~40s of continuous
+// camera panning while terrain is bound, blacking the map out. Tracked in
+// GH #13. Pitch alone still reads as flying, so we ship pseudo-3D for now.
 
 export function RunMap({ polyline, bbox, className, cursor, flyoverActive = false }: RunMapProps) {
   const container = useRef<HTMLDivElement>(null);
@@ -92,17 +91,6 @@ export function RunMap({ polyline, bbox, className, cursor, flyoverActive = fals
         },
       });
 
-      if (MAPTILER_KEY) {
-        map.addSource(TERRAIN_SOURCE, {
-          type: "raster-dem",
-          tiles: [
-            `https://api.maptiler.com/tiles/terrain-rgb-v2/{z}/{x}/{y}.webp?key=${MAPTILER_KEY}`,
-          ],
-          tileSize: 256,
-          maxzoom: 12,
-        });
-      }
-
       loadedRef.current = true;
       applyCursor(map, cursor);
       applyFlyoverMode(map, flyoverActive, cursor);
@@ -153,14 +141,6 @@ function applyFlyoverMode(
   cursor: CursorPoint | null | undefined,
 ): void {
   if (active) {
-    if (MAPTILER_KEY && !map.getTerrain()) {
-      try {
-        map.setTerrain({ source: TERRAIN_SOURCE, exaggeration: 1.4 });
-      } catch {
-        // If terrain wiring fails at runtime (network / CORS), silently fall
-        // back to pitched 2D — pitch alone still reads as "flying".
-      }
-    }
     // Snap camera to flyover state instantly. Using easeTo here would get
     // interrupted by the ~60Hz setCenter follow that starts on the very next
     // rAF frame (setCenter internally calls jumpTo, which cancels any
@@ -170,13 +150,6 @@ function applyFlyoverMode(
     map.setZoom(Math.max(map.getZoom(), 15));
     if (cursor) map.setCenter([cursor.lng, cursor.lat]);
   } else {
-    if (map.getTerrain()) {
-      try {
-        map.setTerrain(null);
-      } catch {
-        // Not fatal.
-      }
-    }
     map.easeTo({ pitch: 0, bearing: 0, duration: 400, essential: true });
   }
 }

@@ -121,9 +121,11 @@ export function RunMap({ polyline, bbox, className, cursor, flyoverActive = fals
     if (!map || !loadedRef.current) return;
     applyCursor(map, cursor);
     if (flyoverActive && cursor) {
-      // Ease-follow the cursor while playing. Short duration = the camera
-      // lags just enough to feel filmic without lurching.
-      map.easeTo({ center: [cursor.lng, cursor.lat], duration: 250, essential: true });
+      // Per-frame follow uses setCenter (instant) instead of easeTo — an
+      // easeTo call here would cancel the initial pitch/zoom animation
+      // fired by applyFlyoverMode and the camera would never tilt. The
+      // ~60Hz rAF updates give natural motion smoothness on their own.
+      map.setCenter([cursor.lng, cursor.lat]);
     }
   }, [cursor, flyoverActive]);
 

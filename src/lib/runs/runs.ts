@@ -91,10 +91,13 @@ export async function getRunById(id: string): Promise<Run | null> {
 }
 
 // Cursor for the Drive-poll cron. Returns undefined when the table is empty
-// (first run — backfill scripts handle bulk import).
+// (first run — backfill scripts handle bulk import). Raw SQL max() comes
+// back as an ISO string via the pg/neon driver, so we coerce to Date here.
 export async function getLatestDriveModifiedTime(): Promise<Date | undefined> {
   const rows = await db
-    .select({ max: raw<Date | null>`max(${runs.driveModifiedTime})` })
+    .select({ max: raw<Date | string | null>`max(${runs.driveModifiedTime})` })
     .from(runs);
-  return rows[0]?.max ?? undefined;
+  const max = rows[0]?.max;
+  if (!max) return undefined;
+  return max instanceof Date ? max : new Date(max);
 }

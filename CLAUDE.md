@@ -40,6 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `GOOGLE_REDIRECT_URI` - Optional (default: `http://localhost/callback/`). Must be registered as an authorized redirect URI on the OAuth client in Google Cloud Console.
   - `LOCAL_FIT_DIR` - Dev only. Directory scanned when `getParsedFit` sees a `local:<md5>` `drive_file_id` (rows inserted via `syncRuns.ts --file`). Skipped in production so a leaked env var can't smuggle in an arbitrary local path.
   - `NEXT_PUBLIC_MAP_STYLE_URL` - Optional. Overrides the default inline OSM raster style used by `/runs` maps. Point at a hosted MapLibre style URL (e.g. `https://tiles.openfreemap.org/styles/positron`) or a `pmtiles://...` URL for a self-hosted vector basemap.
+  - `NEXT_PUBLIC_MAPTILER_KEY` - Optional. When set, the `/runs/[id]` flyover replay attaches a MapTiler Terrain-RGB source and calls `map.setTerrain(...)` so the pitched view renders real elevation. Free tier is 100k tile requests / month. Unset ⇒ flyover still works, just as pitched 2D.
 
 ## Architecture Overview
 

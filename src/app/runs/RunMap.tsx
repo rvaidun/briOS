@@ -18,13 +18,22 @@ export type RunMapProps = {
   bbox: RunBbox;
   className?: string;
   cursor?: CursorPoint | null;
+  // When true the map tilts to a pseudo-3D pitch and pans to follow the
+  // cursor, giving the flyover playback its cinematic feel.
+  flyoverActive?: boolean;
 };
 
 const CURSOR_SOURCE = "run-cursor";
 const CURSOR_LAYER = "run-cursor-dot";
 const CURSOR_HALO_LAYER = "run-cursor-halo";
+const TERRAIN_SOURCE = "maptiler-dem";
 
-export function RunMap({ polyline, bbox, className, cursor }: RunMapProps) {
+// MapTiler Terrain-RGB v2 — free tier, 100k tile requests / month. Client-
+// visible env var; unset ⇒ we skip terrain entirely (still flat pseudo-3D via
+// pitch).
+const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
+
+export function RunMap({ polyline, bbox, className, cursor, flyoverActive = false }: RunMapProps) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const loadedRef = useRef(false);
@@ -40,11 +49,11 @@ export function RunMap({ polyline, bbox, className, cursor }: RunMapProps) {
       style: getMapStyle(),
       bounds: bboxToLngLatBounds(bbox),
       fitBoundsOptions: { padding: 24, animate: false },
-      // A run map reads best flat — no pitch/rotate.
-      dragRotate: false,
+      dragRotate: true,
       touchZoomRotate: true,
-      pitchWithRotate: false,
+      pitchWithRotate: true,
       attributionControl: { compact: true },
+      maxPitch: 75,
     });
 
     map.on("load", () => {
@@ -64,20 +73,12 @@ export function RunMap({ polyline, bbox, className, cursor }: RunMapProps) {
         .setLngLat(latLngToLngLat(points[points.length - 1]!))
         .addTo(map);
 
-      // Empty cursor source — a single-point feature we update on hover.
-      map.addSource(CURSOR_SOURCE, {
-        type: "geojson",
-        data: emptyFeatureCollection(),
-      });
+      map.addSource(CURSOR_SOURCE, { type: "geojson", data: emptyFeatureCollection() });
       map.addLayer({
         id: CURSOR_HALO_LAYER,
         type: "circle",
         source: CURSOR_SOURCE,
-        paint: {
-          "circle-radius": 12,
-          "circle-color": "#ef4444",
-          "circle-opacity": 0.25,
-        },
+        paint: { "circle-radius": 12, "circle-color": "#ef4444", "circle-opacity": 0.25 },
       });
       map.addLayer({
         id: CURSOR_LAYER,
@@ -90,8 +91,21 @@ export function RunMap({ polyline, bbox, className, cursor }: RunMapProps) {
           "circle-stroke-width": 2,
         },
       });
+
+      if (MAPTILER_KEY) {
+        map.addSource(TERRAIN_SOURCE, {
+          type: "raster-dem",
+          tiles: [
+            `https://api.maptiler.com/tiles/terrain-rgb-v2/{z}/{x}/{y}.webp?key=${MAPTILER_KEY}`,
+          ],
+          tileSize: 256,
+          maxzoom: 12,
+        });
+      }
+
       loadedRef.current = true;
       applyCursor(map, cursor);
+      applyFlyoverMode(map, flyoverActive, cursor);
     });
 
     mapRef.current = map;
@@ -106,7 +120,21 @@ export function RunMap({ polyline, bbox, className, cursor }: RunMapProps) {
     const map = mapRef.current;
     if (!map || !loadedRef.current) return;
     applyCursor(map, cursor);
-  }, [cursor]);
+    if (flyoverActive && cursor) {
+      // Ease-follow the cursor while playing. Short duration = the camera
+      // lags just enough to feel filmic without lurching.
+      map.easeTo({ center: [cursor.lng, cursor.lat], duration: 250, essential: true });
+    }
+  }, [cursor, flyoverActive]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    applyFlyoverMode(map, flyoverActive, cursor);
+    // Intentionally not depending on `cursor` — we don't want a re-pitch on
+    // every hover.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flyoverActive]);
 
   return <div ref={container} className={className ?? "h-full w-full"} />;
 }
@@ -115,6 +143,39 @@ function applyCursor(map: MapLibreMap, cursor: CursorPoint | null | undefined): 
   const src = map.getSource(CURSOR_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
   src.setData(cursor ? pointFeatureCollection(cursor) : emptyFeatureCollection());
+}
+
+function applyFlyoverMode(
+  map: MapLibreMap,
+  active: boolean,
+  cursor: CursorPoint | null | undefined,
+): void {
+  if (active) {
+    if (MAPTILER_KEY && !map.getTerrain()) {
+      try {
+        map.setTerrain({ source: TERRAIN_SOURCE, exaggeration: 1.4 });
+      } catch {
+        // If terrain wiring fails at runtime (network / CORS), silently fall
+        // back to pitched 2D — pitch alone still reads as "flying".
+      }
+    }
+    map.easeTo({
+      pitch: 55,
+      zoom: Math.max(map.getZoom(), 15),
+      center: cursor ? [cursor.lng, cursor.lat] : undefined,
+      duration: 700,
+      essential: true,
+    });
+  } else {
+    if (map.getTerrain()) {
+      try {
+        map.setTerrain(null);
+      } catch {
+        // Not fatal.
+      }
+    }
+    map.easeTo({ pitch: 0, bearing: 0, duration: 400, essential: true });
+  }
 }
 
 function emptyFeatureCollection(): GeoJSON.FeatureCollection<GeoJSON.Point> {

@@ -6,6 +6,9 @@ import { Inter, Source_Serif_4 } from "next/font/google";
 import { PropsWithChildren } from "react";
 
 import { ClientShell } from "@/components/ClientShell";
+import type { ClientSession } from "@/components/SessionProvider";
+import { getSession } from "@/lib/auth/user";
+import { type UserRoleValue } from "@/lib/db/schema";
 import { DEFAULT_METADATA, SITE_CONFIG } from "@/lib/metadata";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +30,20 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: PropsWithChildren) {
+export default async function RootLayout({ children }: PropsWithChildren) {
+  const session = await getSession();
+  const clientSession: ClientSession = session
+    ? {
+        user: {
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name,
+          image: session.user.image,
+          role: session.user.role as UserRoleValue,
+        },
+      }
+    : null;
+
   return (
     <html
       lang="en"
@@ -40,7 +56,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
         <meta name="theme-color" content="rgb(10, 10, 10)" media="(prefers-color-scheme: dark)" />
       </head>
       <body className={cn(inter.variable, ptSerif.variable)}>
-        <Providers>
+        <Providers session={clientSession}>
           <ClientShell>{children}</ClientShell>
         </Providers>
         <Analytics />

@@ -201,9 +201,7 @@ async function insertTrackArtists(
   links: { trackId: string; artistId: string; position: number }[],
 ): Promise<void> {
   if (links.length === 0) return;
-  const rows = links.map(
-    (l) => sql`(${l.trackId}::uuid, ${l.artistId}::uuid, ${l.position})`,
-  );
+  const rows = links.map((l) => sql`(${l.trackId}::uuid, ${l.artistId}::uuid, ${l.position})`);
   await db.execute(sql`
     INSERT INTO track_artists (track_id, artist_id, position)
     VALUES ${sql.join(rows, sql`, `)}
@@ -215,9 +213,7 @@ async function insertAlbumArtists(
   links: { albumId: string; artistId: string; position: number }[],
 ): Promise<void> {
   if (links.length === 0) return;
-  const rows = links.map(
-    (l) => sql`(${l.albumId}::uuid, ${l.artistId}::uuid, ${l.position})`,
-  );
+  const rows = links.map((l) => sql`(${l.albumId}::uuid, ${l.artistId}::uuid, ${l.position})`);
   await db.execute(sql`
     INSERT INTO album_artists (album_id, artist_id, position)
     VALUES ${sql.join(rows, sql`, `)}
@@ -225,9 +221,7 @@ async function insertAlbumArtists(
   `);
 }
 
-async function updateTrackAlbums(
-  pairs: { trackId: string; albumId: string }[],
-): Promise<void> {
+async function updateTrackAlbums(pairs: { trackId: string; albumId: string }[]): Promise<void> {
   if (pairs.length === 0) return;
   const rows = pairs.map((p) => sql`(${p.trackId}::uuid, ${p.albumId}::uuid)`);
   await db.execute(sql`

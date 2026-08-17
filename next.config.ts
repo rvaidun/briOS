@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  experimental: {
+    // /runs/admin uploads run photos to R2 via a server action. Default cap
+    // is 1MB; iPhone HEIC/JPEG hero shots run well over that.
+    serverActions: { bodySizeLimit: "15mb" },
+  },
   // Any request that reaches Next.js with the old hostname gets a permanent
   // redirect to the new one, preserving the path + query. Vercel's own
   // domain-level redirect (configured in the dashboard) handles this before

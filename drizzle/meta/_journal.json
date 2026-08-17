@@ -78,6 +78,48 @@
       "when": 1786218104264,
       "tag": "0010_lying_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786821626045,
+      "tag": "0011_handy_sage",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786837268404,
+      "tag": "0012_silly_joystick",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786837796359,
+      "tag": "0013_loving_marauders",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786838050580,
+      "tag": "0014_magenta_red_ghost",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786939396382,
+      "tag": "0015_left_whirlwind",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786998107055,
+      "tag": "0016_young_king_cobra",
+      "breakpoints": true
     }
   ]
 }

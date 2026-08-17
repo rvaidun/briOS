@@ -46,10 +46,7 @@ export default async function WritingPage() {
                   .filter((post) => post.slug)
                   .map((post) => (
                     <li key={post.id} className="flex items-center gap-3">
-                      <Link
-                        href={`/blog/${post.slug}`}
-                        className="group/list-item min-w-0 flex-1"
-                      >
+                      <Link href={`/blog/${post.slug}`} className="group/list-item min-w-0 flex-1">
                         <span className="text-primary leading-[1.6] font-medium underline-offset-1 group-hover/list-item:underline">
                           {post.title}
                         </span>

@@ -1,11 +1,13 @@
 import { sql } from "drizzle-orm";
 import {
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -65,9 +67,7 @@ export const artists = pgTable(
       .notNull()
       .default(sql`now()`),
   },
-  (t) => [
-    index("artists_name_idx").on(t.name),
-  ],
+  (t) => [index("artists_name_idx").on(t.name)],
 );
 
 export type Artist = typeof artists.$inferSelect;
@@ -95,9 +95,7 @@ export const albums = pgTable(
       .notNull()
       .default(sql`now()`),
   },
-  (t) => [
-    index("albums_name_idx").on(t.name),
-  ],
+  (t) => [index("albums_name_idx").on(t.name)],
 );
 
 export type Album = typeof albums.$inferSelect;
@@ -232,6 +230,36 @@ export const guestbookEntries = pgTable(
 export type GuestbookEntry = typeof guestbookEntries.$inferSelect;
 export type NewGuestbookEntry = typeof guestbookEntries.$inferInsert;
 
+// Every Google-authenticated visitor gets a row here. Role gates what they
+// can see: 'owner' is the site operator (auto-assigned when email matches
+// GOOGLE_OWNER_EMAIL), 'approved' can see gated pages like /runs, 'pending'
+// is signed-in but waiting, 'denied' has been explicitly refused.
+export const UserRole = {
+  Owner: "owner",
+  Approved: "approved",
+  Pending: "pending",
+  Denied: "denied",
+} as const;
+export type UserRoleValue = (typeof UserRole)[keyof typeof UserRole];
+
+export const users = pgTable("users", {
+  id: uuid("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  image: text("image"),
+  role: text("role").notNull().default(UserRole.Pending).$type<UserRoleValue>(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  approvedBy: uuid("approved_by"),
+});
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
 // One row per OAuth source. Spotify rotates refresh tokens periodically; we
 // store the latest pair here so the cron container is stateless.
 export const oauthTokens = pgTable("oauth_tokens", {
@@ -243,3 +271,102 @@ export const oauthTokens = pgTable("oauth_tokens", {
     .notNull()
     .default(sql`now()`),
 });
+
+// One row per Apple-Watch-exported .fit file. The raw file stays in Google
+// Drive (that's the object store); this table is a small summary index so the
+// /runs list can render fast. Full per-record streams are re-parsed on demand
+// at detail-page render time and cached (see src/lib/runs/fit-cache.ts).
+export const runs = pgTable(
+  "runs",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    sport: text("sport").notNull(),
+    // Admin-editable display name. Falls back to the sport when null.
+    name: text("name"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }).notNull(),
+    timezone: text("timezone"),
+
+    deviceManufacturer: text("device_manufacturer"),
+    deviceProduct: text("device_product"),
+
+    distanceM: real("distance_m").notNull(),
+    movingTimeS: integer("moving_time_s").notNull(),
+    elapsedTimeS: integer("elapsed_time_s").notNull(),
+    avgSpeedMps: real("avg_speed_mps"),
+    maxSpeedMps: real("max_speed_mps"),
+    avgHr: integer("avg_hr"),
+    maxHr: integer("max_hr"),
+    avgCadence: integer("avg_cadence"),
+    elevationGainM: real("elevation_gain_m"),
+    elevationLossM: real("elevation_loss_m"),
+    calories: integer("calories"),
+
+    // Simplified route geometry for the list view. Google encoded polyline
+    // (precision 5), Douglas–Peucker'd to ≤500 pts so rows stay small.
+    startLat: doublePrecision("start_lat"),
+    startLng: doublePrecision("start_lng"),
+    bbox: jsonb("bbox").$type<RunBbox | null>(),
+    polyline: text("polyline"),
+
+    // Pre-rendered route thumbnail (basemap tiles + polyline overlay), baked
+    // at sync time by scripts/syncRuns.ts and stored in R2. The /runs list
+    // shows this as a plain <img>, avoiding any client-side WebGL/MapLibre
+    // work per card.
+    thumbnailUrl: text("thumbnail_url"),
+
+    // Google Drive is the object store for the raw .fit.
+    driveFileId: text("drive_file_id").notNull(),
+    driveModifiedTime: timestamp("drive_modified_time", { withTimezone: true }).notNull(),
+    driveMd5: text("drive_md5"),
+    driveName: text("drive_name"),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [
+    uniqueIndex("runs_drive_file_uniq").on(t.driveFileId),
+    uniqueIndex("runs_drive_md5_uniq").on(t.driveMd5),
+    // Dedup by the FIT session's own start timestamp — deterministic per
+    // activity even if the .fit is re-exported (which produces different bytes
+    // and therefore a different md5).
+    uniqueIndex("runs_started_at_uniq").on(t.startedAt),
+    index("runs_started_at_idx").on(t.startedAt.desc()),
+    index("runs_sport_idx").on(t.sport),
+  ],
+);
+
+export type RunBbox = { n: number; s: number; e: number; w: number };
+export type Run = typeof runs.$inferSelect;
+export type NewRun = typeof runs.$inferInsert;
+
+// Photos attached to a run by the admin. `url` points at an R2 object under
+// media.rahulvaidun.com/runs/<runId>/<hash>.<ext>. `position` orders the
+// strip on the detail page — 0 first.
+export const runPhotos = pgTable(
+  "run_photos",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    caption: text("caption"),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [index("run_photos_run_id_idx").on(t.runId, t.position)],
+);
+
+export type RunPhoto = typeof runPhotos.$inferSelect;
+export type NewRunPhoto = typeof runPhotos.$inferInsert;

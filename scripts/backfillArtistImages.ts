@@ -54,9 +54,7 @@ async function fetchArtists(ids: string[], accessToken: string): Promise<Spotify
   return (await resp.json()) as SpotifyArtistsResponse;
 }
 
-async function updateImages(
-  updates: { rowId: string; imageUrl: string }[],
-): Promise<void> {
+async function updateImages(updates: { rowId: string; imageUrl: string }[]): Promise<void> {
   if (updates.length === 0) return;
   const rows = updates.map((u) => sql`(${u.rowId}::uuid, ${u.imageUrl})`);
   await db.execute(sql`
@@ -72,10 +70,10 @@ async function main() {
   const refresh = process.argv.includes("--refresh");
 
   const candidates = await loadCandidates(refresh);
+  console.log(`artists ${refresh ? "to refresh" : "missing image"}: ${candidates.length}`);
   console.log(
-    `artists ${refresh ? "to refresh" : "missing image"}: ${candidates.length}`,
+    `will hit /v1/artists in ${Math.ceil(candidates.length / BATCH)} batches of ${BATCH}`,
   );
-  console.log(`will hit /v1/artists in ${Math.ceil(candidates.length / BATCH)} batches of ${BATCH}`);
   if (candidates.length === 0) return;
 
   if (!confirm) {

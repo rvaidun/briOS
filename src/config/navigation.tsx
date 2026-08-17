@@ -6,7 +6,11 @@ import { Headphones3 } from "@/components/icons/Headphones3";
 import { Home } from "@/components/icons/Home";
 import { Photo } from "@/components/icons/Photo";
 import { PinOnMap } from "@/components/icons/PinOnMap";
+import { Sneaker } from "@/components/icons/Sneaker";
 import { IconProps } from "@/components/icons/types";
+import { UserRole, type UserRoleValue } from "@/lib/db/schema";
+
+export type NavAccess = "public" | "approved" | "owner";
 
 export interface NavigationItem {
   id: string;
@@ -16,6 +20,19 @@ export interface NavigationItem {
   keywords?: string[];
   isActive?: (pathname: string) => boolean;
   section?: "main" | "projects";
+  // Who can see this entry in the sidebar / ⌘K. Default: "public".
+  // Note: this only gates *visibility*, not access — pages enforce their own
+  // auth via requireApprovedUser() / requireOwner().
+  access?: NavAccess;
+}
+
+function canSee(item: NavigationItem, role: UserRoleValue | null): boolean {
+  const access = item.access ?? "public";
+  if (access === "public") return true;
+  if (!role) return false;
+  if (access === "approved") return role === UserRole.Approved || role === UserRole.Owner;
+  if (access === "owner") return role === UserRole.Owner;
+  return false;
 }
 
 export const navigationItems: NavigationItem[] = [
@@ -69,6 +86,17 @@ export const navigationItems: NavigationItem[] = [
   },
 
   {
+    id: "runs",
+    label: "Runs",
+    href: "/runs",
+    icon: Sneaker,
+    keywords: ["runs", "running", "run", "fitness", "activity", "gps", "strava"],
+    isActive: (pathname) => pathname.startsWith("/runs"),
+    section: "main",
+    access: "approved",
+  },
+
+  {
     id: "guestbook",
     label: "Guestbook",
     href: "/guestbook",
@@ -79,11 +107,14 @@ export const navigationItems: NavigationItem[] = [
   },
 ];
 
-// Helper functions to filter navigation items
-export const getMainNavigationItems = () =>
-  navigationItems.filter((item) => item.section === "main");
+// Helper functions to filter navigation items. Pass the current user role (or
+// null for anonymous) so items with `access` set to "approved" / "owner" are
+// filtered out for viewers who shouldn't see them.
+export const getMainNavigationItems = (role: UserRoleValue | null) =>
+  navigationItems.filter((item) => item.section === "main" && canSee(item, role));
 
-export const getProjectNavigationItems = () =>
-  navigationItems.filter((item) => item.section === "projects");
+export const getProjectNavigationItems = (role: UserRoleValue | null) =>
+  navigationItems.filter((item) => item.section === "projects" && canSee(item, role));
 
-export const getAllNavigationItems = () => navigationItems;
+export const getAllNavigationItems = (role: UserRoleValue | null) =>
+  navigationItems.filter((item) => canSee(item, role));

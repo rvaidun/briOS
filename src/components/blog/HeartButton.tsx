@@ -81,7 +81,7 @@ export function HeartButton({ slug, size = "lg" }: HeartButtonProps) {
           "group/heart inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm tabular-nums transition-colors",
           displayFilled
             ? "cursor-default border-red-200 bg-red-50 text-red-500 dark:border-red-800/60 dark:bg-red-950/30 dark:text-red-400"
-            : "border-neutral-200 text-secondary hover:border-neutral-300 hover:text-primary dark:border-neutral-800 dark:hover:border-neutral-700",
+            : "text-secondary hover:text-primary border-neutral-200 hover:border-neutral-300 dark:border-neutral-800 dark:hover:border-neutral-700",
         )}
       >
         <motion.span
@@ -113,7 +113,7 @@ export function HeartButton({ slug, size = "lg" }: HeartButtonProps) {
           "border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950",
           displayFilled
             ? "cursor-default text-red-500"
-            : "text-secondary hover:bg-neutral-50 hover:text-primary dark:hover:bg-neutral-900",
+            : "text-secondary hover:text-primary hover:bg-neutral-50 dark:hover:bg-neutral-900",
         )}
       >
         <motion.span

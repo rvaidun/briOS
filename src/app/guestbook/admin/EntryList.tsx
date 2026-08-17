@@ -5,7 +5,7 @@ import { useTransition } from "react";
 import type { GuestbookEntryView } from "@/components/guestbook/types";
 import { Button } from "@/components/ui/Button";
 
-import { deleteEntry, logout } from "./actions";
+import { deleteEntry } from "./actions";
 
 export function EntryList({ entries }: { entries: GuestbookEntryView[] }) {
   const [pending, startTransition] = useTransition();
@@ -16,7 +16,7 @@ export function EntryList({ entries }: { entries: GuestbookEntryView[] }) {
         <p className="text-secondary text-sm">
           {entries.length} {entries.length === 1 ? "entry" : "entries"}
         </p>
-        <form action={logout}>
+        <form action="/api/auth/logout" method="post">
           <Button type="submit" variant="ghost" size="sm">
             Sign out
           </Button>

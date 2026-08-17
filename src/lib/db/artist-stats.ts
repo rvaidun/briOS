@@ -118,9 +118,7 @@ export async function getArtistHeatmap(artistId: string): Promise<ArtistHeatmapC
     where ta.artist_id = ${artistId}::uuid
     group by 1, 2
   `);
-  return (
-    r.rows as { day_of_week: number; hour_of_day: number; plays: number }[]
-  ).map((row) => ({
+  return (r.rows as { day_of_week: number; hour_of_day: number; plays: number }[]).map((row) => ({
     dayOfWeek: row.day_of_week,
     hourOfDay: row.hour_of_day,
     plays: row.plays,

@@ -36,7 +36,7 @@ export type DriveFile = {
 
 let cachedCreds: { id: string; secret: string } | null = null;
 
-function clientCreds(): { id: string; secret: string } {
+export function clientCreds(): { id: string; secret: string } {
   if (cachedCreds) return cachedCreds;
 
   const envId = process.env.GOOGLE_CLIENT_ID;

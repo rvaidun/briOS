@@ -2,50 +2,16 @@
 
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
-import {
-  ADMIN_COOKIE,
-  ADMIN_COOKIE_MAX_AGE,
-  isAdmin,
-  passwordMatches,
-  tokenFor,
-} from "@/lib/admin-auth";
+import { requireOwner } from "@/lib/auth/user";
 import { db } from "@/lib/db/client";
 import { runs } from "@/lib/db/schema";
 import { deletePhotoById, insertPhoto, uploadRunPhotoToR2 } from "@/lib/runs/photos";
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15 MB per photo
 
-async function requireAdmin(): Promise<void> {
-  if (!(await isAdmin())) throw new Error("Not authorized");
-}
-
-export async function login(formData: FormData): Promise<void> {
-  const password = formData.get("password");
-  if (typeof password !== "string" || !passwordMatches(password)) {
-    redirect("/runs/admin?error=1");
-  }
-  const store = await cookies();
-  store.set(ADMIN_COOKIE, tokenFor(password), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: ADMIN_COOKIE_MAX_AGE,
-  });
-  redirect("/runs/admin");
-}
-
-export async function logout(): Promise<void> {
-  const store = await cookies();
-  store.delete(ADMIN_COOKIE);
-  redirect("/runs/admin");
-}
-
 export async function updateRunName(runId: string, name: string): Promise<void> {
-  await requireAdmin();
+  await requireOwner("/runs/admin");
   if (!runId) throw new Error("Missing runId");
   const trimmed = name.trim();
   await db
@@ -58,7 +24,7 @@ export async function updateRunName(runId: string, name: string): Promise<void> 
 }
 
 export async function uploadPhoto(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireOwner("/runs/admin");
   const runId = formData.get("runId");
   const file = formData.get("file");
   const captionRaw = formData.get("caption");
@@ -82,7 +48,7 @@ export async function uploadPhoto(formData: FormData): Promise<void> {
 }
 
 export async function deletePhoto(id: string): Promise<void> {
-  await requireAdmin();
+  await requireOwner("/runs/admin");
   if (!id) throw new Error("Missing id");
   await deletePhotoById(id);
   revalidatePath("/runs/admin");

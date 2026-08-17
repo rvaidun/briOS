@@ -22,7 +22,12 @@ import { basename } from "node:path";
 
 import { parseFit, type RunPayload } from "../src/lib/runs/fit";
 import { downloadDriveFile, listFitFilesInFolder } from "../src/lib/runs/google-drive";
-import { getLatestDriveModifiedTime, upsertRunFromFit } from "../src/lib/runs/runs";
+import {
+  getLatestDriveModifiedTime,
+  setRunThumbnailUrl,
+  upsertRunFromFit,
+} from "../src/lib/runs/runs";
+import { renderRunThumbnail, uploadRunThumbnailToR2 } from "../src/lib/runs/thumbnail";
 
 type Counters = { inserted: number; skipped: number; failed: number };
 
@@ -43,11 +48,28 @@ async function ingest(
       driveMd5,
       driveName,
     });
-    if (result === "inserted") counters.inserted += 1;
+    if (result.status === "inserted") counters.inserted += 1;
     else counters.skipped += 1;
     console.log(
-      `[${result}] ${label} — ${parsed.summary.sport}, ${parsed.summary.distanceM.toFixed(0)}m, ${parsed.summary.movingTimeS}s`,
+      `[${result.status}] ${label} — ${parsed.summary.sport}, ${parsed.summary.distanceM.toFixed(0)}m, ${parsed.summary.movingTimeS}s`,
     );
+
+    // Fire-and-log thumbnail render for newly-inserted runs that have GPS.
+    // Failures don't fail the ingest — the client still falls back to
+    // rendering MapLibre on demand if thumbnailUrl is null.
+    if (result.status === "inserted" && parsed.simplifiedPolyline && parsed.summary.bbox) {
+      try {
+        const png = await renderRunThumbnail({
+          polyline: parsed.simplifiedPolyline,
+          bbox: parsed.summary.bbox,
+        });
+        const url = await uploadRunThumbnailToR2(result.id, png);
+        await setRunThumbnailUrl(result.id, url);
+        console.log(`  ↳ thumbnail: ${url}`);
+      } catch (e) {
+        console.error(`  ↳ thumbnail failed:`, e instanceof Error ? e.message : e);
+      }
+    }
   } catch (e) {
     counters.failed += 1;
     console.error(`[failed] ${label}:`, e instanceof Error ? e.message : e);

@@ -10,6 +10,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { Monitor } from "@/components/icons/Monitor";
 import { Moon } from "@/components/icons/Moon";
 import { Sun } from "@/components/icons/Sun";
+import { useSession } from "@/components/SessionProvider";
 import { getAllNavigationItems } from "@/config/navigation";
 
 export function CommandMenu() {
@@ -19,9 +20,11 @@ export function CommandMenu() {
   const listRef = React.useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   const { setTheme } = useTheme();
+  const session = useSession();
+  const role = session?.user.role ?? null;
 
   // Memoize navigation items to avoid recomputing on every render
-  const navigationItems = React.useMemo(() => getAllNavigationItems(), []);
+  const navigationItems = React.useMemo(() => getAllNavigationItems(role), [role]);
 
   // Global hotkey to open command menu
   useHotkeys(

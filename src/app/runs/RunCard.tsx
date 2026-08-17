@@ -2,14 +2,23 @@ import Link from "next/link";
 
 import { Heart } from "@/components/icons/Heart";
 import type { Run } from "@/lib/db/schema";
+import type { Medal } from "@/lib/runs/medals";
 
 import { RunHeartButton } from "./RunHeartButton";
+import { RunMedals } from "./RunMedals";
 import { RunMiniMap } from "./RunMiniMap";
 
-// Row for the /runs list. MapLibre mini-map (lazy-mounted via
-// IntersectionObserver in RunMiniMap) draws the route over base tiles;
-// falls back to a placeholder when the run has no GPS trace.
-export function RunCard({ run, heartCount = 0 }: { run: Run; heartCount?: number }) {
+// Row for the /runs list. SVG mini-map draws the route; falls back to an
+// "indoor" placeholder when the run has no GPS trace.
+export function RunCard({
+  run,
+  heartCount = 0,
+  medals = [],
+}: {
+  run: Run;
+  heartCount?: number;
+  medals?: readonly Medal[];
+}) {
   const distanceMi = run.distanceM / 1609.344;
   const pacePerMi = run.distanceM > 0 ? run.movingTimeS / (run.distanceM / 1609.344) : 0;
   const hasGeo = Boolean(run.polyline && run.bbox);
@@ -21,7 +30,12 @@ export function RunCard({ run, heartCount = 0 }: { run: Run; heartCount?: number
     >
       <div className="border-secondary flex-none overflow-hidden rounded-md border bg-neutral-100 dark:border-white/10 dark:bg-black/20">
         {hasGeo && run.polyline && run.bbox ? (
-          <RunMiniMap polyline={run.polyline} bbox={run.bbox} className="h-24 w-60" />
+          <RunMiniMap
+            polyline={run.polyline}
+            bbox={run.bbox}
+            thumbnailUrl={run.thumbnailUrl}
+            className="h-24 w-60"
+          />
         ) : (
           <div className="flex h-24 w-60 items-center justify-center text-xs text-neutral-400">
             indoor
@@ -39,6 +53,8 @@ export function RunCard({ run, heartCount = 0 }: { run: Run; heartCount?: number
           </div>
           <RunHeartButton id={run.id} initialCount={heartCount} />
         </div>
+
+        {medals.length > 0 && <RunMedals medals={medals} />}
 
         <div className="text-secondary grid grid-cols-4 gap-2 text-xs tabular-nums sm:text-[13px]">
           <Stat label="Distance" value={`${distanceMi.toFixed(2)} mi`} />
@@ -82,8 +98,13 @@ function defaultTitle(run: Run): string {
 }
 
 function formatDateLine(d: Date): string {
-  // "Sat Aug 15 · 9:38 AM"
-  const day = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  // "Sat, Aug 15, 2026 · 9:38 AM"
+  const day = d.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
   const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   return `${day} · ${time}`;
 }

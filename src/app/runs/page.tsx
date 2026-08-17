@@ -4,9 +4,10 @@ import Link from "next/link";
 import { TopBar } from "@/components/TopBar";
 import { getHeartCounts } from "@/lib/hearts";
 import { createMetadata } from "@/lib/metadata";
+import { computeMedals } from "@/lib/runs/medals";
 import { listRuns } from "@/lib/runs/runs";
 
-import { RunCard } from "./RunCard";
+import { RunsList } from "./RunsList";
 import { StatsStrip } from "./StatsStrip";
 
 export const metadata: Metadata = createMetadata({
@@ -22,6 +23,7 @@ export const revalidate = 3600;
 export default async function RunsPage() {
   const runs = await listRuns(100);
   const heartCounts = await getHeartCounts(runs.map((r) => `run:${r.id}`));
+  const medals = computeMedals(runs);
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
@@ -41,14 +43,7 @@ export default async function RunsPage() {
         {runs.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="flex flex-col gap-3">
-            <h2 className="text-primary text-sm font-semibold">Runs</h2>
-            <div className="flex flex-col gap-3">
-              {runs.map((r) => (
-                <RunCard key={r.id} run={r} heartCount={heartCounts[`run:${r.id}`] ?? 0} />
-              ))}
-            </div>
-          </div>
+          <RunsList runs={runs} heartCounts={heartCounts} medals={medals} />
         )}
       </div>
     </div>

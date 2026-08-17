@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import type { Run, RunPhoto } from "@/lib/db/schema";
 
-import { deletePhoto, logout, updateRunName, uploadPhoto } from "./actions";
+import { deletePhoto, updateRunName, uploadPhoto } from "./actions";
 
 export type RunAdminRow = Run & { photos: RunPhoto[] };
 
@@ -17,7 +17,7 @@ export function RunAdminList({ runs }: { runs: RunAdminRow[] }) {
         <p className="text-secondary text-sm">
           {runs.length} {runs.length === 1 ? "run" : "runs"}
         </p>
-        <form action={logout}>
+        <form action="/api/auth/logout" method="post">
           <Button type="submit" variant="ghost" size="sm">
             Sign out
           </Button>

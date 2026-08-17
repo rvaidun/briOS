@@ -230,6 +230,36 @@ export const guestbookEntries = pgTable(
 export type GuestbookEntry = typeof guestbookEntries.$inferSelect;
 export type NewGuestbookEntry = typeof guestbookEntries.$inferInsert;
 
+// Every Google-authenticated visitor gets a row here. Role gates what they
+// can see: 'owner' is the site operator (auto-assigned when email matches
+// GOOGLE_OWNER_EMAIL), 'approved' can see gated pages like /runs, 'pending'
+// is signed-in but waiting, 'denied' has been explicitly refused.
+export const UserRole = {
+  Owner: "owner",
+  Approved: "approved",
+  Pending: "pending",
+  Denied: "denied",
+} as const;
+export type UserRoleValue = (typeof UserRole)[keyof typeof UserRole];
+
+export const users = pgTable("users", {
+  id: uuid("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  image: text("image"),
+  role: text("role").notNull().default(UserRole.Pending).$type<UserRoleValue>(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  approvedBy: uuid("approved_by"),
+});
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
 // One row per OAuth source. Spotify rotates refresh tokens periodically; we
 // store the latest pair here so the cron container is stateless.
 export const oauthTokens = pgTable("oauth_tokens", {
@@ -280,6 +310,12 @@ export const runs = pgTable(
     startLng: doublePrecision("start_lng"),
     bbox: jsonb("bbox").$type<RunBbox | null>(),
     polyline: text("polyline"),
+
+    // Pre-rendered route thumbnail (basemap tiles + polyline overlay), baked
+    // at sync time by scripts/syncRuns.ts and stored in R2. The /runs list
+    // shows this as a plain <img>, avoiding any client-side WebGL/MapLibre
+    // work per card.
+    thumbnailUrl: text("thumbnail_url"),
 
     // Google Drive is the object store for the raw .fit.
     driveFileId: text("drive_file_id").notNull(),

@@ -85,7 +85,7 @@ export function RunFlyoverControls({
         value={Math.min(Math.round(elapsedS), Math.round(totalElapsedS))}
         onChange={(e) => onSeek(Number(e.target.value))}
         aria-label="Seek flyover position"
-        className="accent-orange-500 h-1.5 w-full cursor-pointer"
+        className="h-1.5 w-full cursor-pointer accent-orange-500"
       />
     </div>
   );

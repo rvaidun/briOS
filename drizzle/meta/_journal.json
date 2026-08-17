@@ -106,6 +106,20 @@
       "when": 1786838050580,
       "tag": "0014_magenta_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786939396382,
+      "tag": "0015_left_whirlwind",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786998107055,
+      "tag": "0016_young_king_cobra",
+      "breakpoints": true
     }
   ]
 }

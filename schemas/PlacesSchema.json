@@ -242,6 +242,30 @@
             "name": "Brunch restaurant",
             "color": "red",
             "description": null
+          },
+          {
+            "id": "c5e86b38-a0ce-498e-a6a8-c2f1998ef258",
+            "name": "Breakfast restaurant",
+            "color": "yellow",
+            "description": null
+          },
+          {
+            "id": "98b19fe8-bde4-4ff4-8cee-32841f1af329",
+            "name": "Mexican restaurant",
+            "color": "pink",
+            "description": null
+          },
+          {
+            "id": "f15e02b9-2e84-4c6f-8d05-51c3c7546065",
+            "name": "Sushi restaurant",
+            "color": "default",
+            "description": null
+          },
+          {
+            "id": "463a310b-b987-450a-8252-e27713da4d08",
+            "name": "Parking lot",
+            "color": "gray",
+            "description": null
           }
         ]
       }

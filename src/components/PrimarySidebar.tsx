@@ -9,6 +9,7 @@ import React from "react";
 
 import { sidebarAtom } from "@/atoms/sidebar";
 import { DoubleChevronLeft } from "@/components/icons/DoubleChevronLeft";
+import { useSession } from "@/components/SessionProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { IconButton } from "@/components/ui/IconButton";
 import { getMainNavigationItems } from "@/config/navigation";
@@ -24,9 +25,11 @@ export function PrimarySidebar({
   const setIsOpen = useSetAtom(sidebarAtom);
   const pathname = usePathname();
   const isSmallScreen = useIsSmallScreen();
+  const session = useSession();
+  const role = session?.user.role ?? null;
 
   // Memoize navigation items to avoid recomputing on every render
-  const mainNavItems = React.useMemo(() => getMainNavigationItems(), []);
+  const mainNavItems = React.useMemo(() => getMainNavigationItems(role), [role]);
 
   const duration = 0.2;
   const ease = "easeInOut" as const;
@@ -101,6 +104,8 @@ export function PrimarySidebar({
                   );
                 })}
               </div>
+
+              <SidebarUserFooter />
             </motion.div>
           </motion.div>
         </>
@@ -154,6 +159,39 @@ export function SidebarItem({
         {trailingAccessory}
       </div>
     </Link>
+  );
+}
+
+// Sidebar user footer — renders nothing when signed out so /login stays a
+// hidden URL-only surface (matches product decision that this site is not a
+// public sign-up destination).
+function SidebarUserFooter() {
+  const session = useSession();
+  if (!session) return null;
+
+  const label = session.user.name?.trim() || session.user.email;
+
+  return (
+    <div className="border-primary/50 mx-2 flex items-center gap-2 border-t px-1 py-2">
+      {session.user.image ? (
+        <img
+          src={session.user.image}
+          alt=""
+          referrerPolicy="no-referrer"
+          className="h-5 w-5 flex-none rounded-full"
+        />
+      ) : (
+        <div className="bg-tertiary h-5 w-5 flex-none rounded-full" />
+      )}
+      <span className="text-secondary truncate text-xs" title={session.user.email}>
+        {label}
+      </span>
+      <form action="/api/auth/logout" method="post" className="ml-auto">
+        <button type="submit" className="text-tertiary hover:text-primary text-xs" title="Sign out">
+          Sign out
+        </button>
+      </form>
+    </div>
   );
 }
 

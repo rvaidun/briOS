@@ -570,9 +570,7 @@ function LabelPctControl({
     <div className="border-secondary text-secondary flex flex-col gap-1.5 rounded-md border bg-white/90 px-3 py-2 text-xs backdrop-blur dark:bg-neutral-950/90">
       <label className="flex items-center gap-2">
         <span>Label top</span>
-        <span className="text-primary min-w-[2.25rem] text-right font-semibold tabular-nums">
-          {value}%
-        </span>
+        <span className="text-primary min-w-9 text-right font-semibold tabular-nums">{value}%</span>
       </label>
       <input
         type="range"

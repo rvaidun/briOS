@@ -26,6 +26,7 @@ type ForceEdge = { source: string | ForceNode; target: string | ForceNode };
 const PLAYLIST_COLOR = "#1db954"; // Spotify green
 const TRACK_COLOR = "#94a3b8"; // slate-400
 const HIGHLIGHT_COLOR = "#f97316"; // orange-500
+const SECOND_HOP_COLOR = "#a855f7"; // purple-500 — playlists that share songs w/ focal
 // Singletons render nearly invisible so they form spatial context rather than
 // competing with the shared-song hubs. Hovering/focusing a playlist still
 // pulls them into full contrast.
@@ -322,19 +323,43 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
   // Focus (click) takes precedence over hover — locked-in focus persists so
   // you can hover other nodes to inspect edges without breaking the frame.
   const focalNode = focused ?? hovered;
-  const highlightSet = useMemo(() => {
-    if (!focalNode) return null;
+
+  const nodeById = useMemo(() => {
+    const m = new Map<string, ForceNode>();
+    for (const n of forceData.nodes) m.set(n.id, n);
+    return m;
+  }, [forceData]);
+
+  // When the focal node is a playlist we also compute a second-hop set: the
+  // OTHER playlists that share any song with the focal playlist. Rendered in
+  // a distinct color so you can see where a playlist's songs also live.
+  const { highlightSet, secondHopPlaylistIds } = useMemo(() => {
+    if (!focalNode) return { highlightSet: null, secondHopPlaylistIds: null };
     const s = new Set<string>([focalNode.id]);
     focalNode.neighbors.forEach((id) => s.add(id));
-    return s;
-  }, [focalNode]);
+
+    let secondHop: Set<string> | null = null;
+    if (focalNode.type === "playlist") {
+      secondHop = new Set<string>();
+      for (const trackId of focalNode.neighbors) {
+        const track = nodeById.get(trackId);
+        if (!track) continue;
+        for (const nb of track.neighbors) {
+          if (nb !== focalNode.id) secondHop.add(nb);
+        }
+      }
+      if (secondHop.size === 0) secondHop = null;
+    }
+    return { highlightSet: s, secondHopPlaylistIds: secondHop };
+  }, [focalNode, nodeById]);
 
   const nodeCanvasObject = useCallback(
     (rawNode: object, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const node = rawNode as ForceNode;
       const isPlaylist = node.type === "playlist";
       const isHighlighted = highlightSet?.has(node.id) ?? false;
-      const isDimmed = highlightSet !== null && !isHighlighted;
+      const isSecondHop = secondHopPlaylistIds?.has(node.id) ?? false;
+      const isDimmed = highlightSet !== null && !isHighlighted && !isSecondHop;
       // Track radius scales with degree so heavily-shared songs also read as
       // bigger anchors, not just brighter dots.
       const radius = isPlaylist ? 6 : 2 + Math.min(8, 1.6 * Math.log2(1 + node.degree));
@@ -345,7 +370,8 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       // tracks; hover state overrides it. Playlists stay solid so the
       // "anchor" nodes read clearly against the sea of songs.
       const baseAlpha = isPlaylist ? 1 : node.brightness;
-      ctx.globalAlpha = isHighlighted ? 1 : isDimmed ? Math.min(baseAlpha, 0.15) : baseAlpha;
+      ctx.globalAlpha =
+        isHighlighted || isSecondHop ? 1 : isDimmed ? Math.min(baseAlpha, 0.15) : baseAlpha;
 
       const img = imageCacheRef.current.get(node.id);
       if (img) {
@@ -362,17 +388,25 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
         ctx.restore();
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, 2 * Math.PI);
-        ctx.lineWidth = isHighlighted ? 1.5 : isPlaylist ? 1.5 : 0.4;
+        ctx.lineWidth = isHighlighted || isSecondHop ? 1.5 : isPlaylist ? 1.5 : 0.4;
         ctx.strokeStyle = isHighlighted
           ? HIGHLIGHT_COLOR
-          : isPlaylist
-            ? PLAYLIST_COLOR
-            : strokeColor;
+          : isSecondHop
+            ? SECOND_HOP_COLOR
+            : isPlaylist
+              ? PLAYLIST_COLOR
+              : strokeColor;
         ctx.stroke();
       } else {
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, 2 * Math.PI);
-        ctx.fillStyle = isHighlighted ? HIGHLIGHT_COLOR : isPlaylist ? PLAYLIST_COLOR : TRACK_COLOR;
+        ctx.fillStyle = isHighlighted
+          ? HIGHLIGHT_COLOR
+          : isSecondHop
+            ? SECOND_HOP_COLOR
+            : isPlaylist
+              ? PLAYLIST_COLOR
+              : TRACK_COLOR;
         ctx.fill();
       }
 
@@ -381,6 +415,7 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       const showLabel =
         isPlaylist ||
         isHighlighted ||
+        isSecondHop ||
         globalScale > 3 ||
         (node.type === "track" && node.degree >= alwaysLabelTrackDegree);
       if (showLabel) {
@@ -396,7 +431,14 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       }
       ctx.globalAlpha = 1;
     },
-    [highlightSet, labelColor, labelDimColor, strokeColor, alwaysLabelTrackDegree],
+    [
+      highlightSet,
+      secondHopPlaylistIds,
+      labelColor,
+      labelDimColor,
+      strokeColor,
+      alwaysLabelTrackDegree,
+    ],
   );
 
   const restingLinkColor = isDark ? "rgba(148,163,184,0.22)" : "rgba(148,163,184,0.35)";
@@ -407,11 +449,20 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       if (!highlightSet) return restingLinkColor;
       const s = typeof l.source === "string" ? l.source : l.source.id;
       const t = typeof l.target === "string" ? l.target : l.target.id;
-      const touchesFocal =
-        s === focalNode?.id || t === focalNode?.id || (highlightSet.has(s) && highlightSet.has(t));
-      return touchesFocal ? "rgba(249,115,22,0.85)" : dimmedLinkColor;
+      if (s === focalNode?.id || t === focalNode?.id) return "rgba(249,115,22,0.85)";
+      // Second-hop: edge between an immediate-neighbor track and another
+      // playlist that shares a song with focal.
+      if (
+        secondHopPlaylistIds &&
+        focalNode &&
+        ((secondHopPlaylistIds.has(s) && focalNode.neighbors.has(t)) ||
+          (secondHopPlaylistIds.has(t) && focalNode.neighbors.has(s)))
+      ) {
+        return "rgba(168,85,247,0.85)";
+      }
+      return dimmedLinkColor;
     },
-    [highlightSet, focalNode, restingLinkColor, dimmedLinkColor],
+    [highlightSet, secondHopPlaylistIds, focalNode, restingLinkColor, dimmedLinkColor],
   );
 
   return (
@@ -439,7 +490,16 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
           if (!highlightSet) return 0.4;
           const s = typeof l.source === "string" ? l.source : l.source.id;
           const t = typeof l.target === "string" ? l.target : l.target.id;
-          return s === focalNode?.id || t === focalNode?.id ? 1.2 : 0.4;
+          if (s === focalNode?.id || t === focalNode?.id) return 1.2;
+          if (
+            secondHopPlaylistIds &&
+            focalNode &&
+            ((secondHopPlaylistIds.has(s) && focalNode.neighbors.has(t)) ||
+              (secondHopPlaylistIds.has(t) && focalNode.neighbors.has(s)))
+          ) {
+            return 0.9;
+          }
+          return 0.4;
         }}
         onNodeHover={(node) => setHovered((node as ForceNode | null) ?? null)}
         onNodeClick={(node) => setFocused((node as ForceNode | null) ?? null)}

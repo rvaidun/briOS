@@ -92,17 +92,14 @@ async function finalizePlaylist(
   `);
 }
 
-async function existingPlaylistState(
-  sourcePlaylistId: string,
-): Promise<{ snapshotId: string | null; trackCount: number | null } | null> {
+async function existingSnapshotId(sourcePlaylistId: string): Promise<string | null> {
   const found = await db.execute(sql`
-    SELECT snapshot_id, track_count FROM playlists
+    SELECT snapshot_id FROM playlists
     WHERE source = 'spotify' AND source_playlist_id = ${sourcePlaylistId}
     LIMIT 1
   `);
   if (found.rows.length === 0) return null;
-  const r = found.rows[0] as { snapshot_id: string | null; track_count: number | null };
-  return { snapshotId: r.snapshot_id, trackCount: r.track_count };
+  return (found.rows[0] as { snapshot_id: string | null }).snapshot_id;
 }
 
 // Fetches the playlist's current membership from the DB keyed by Spotify
@@ -126,7 +123,8 @@ async function fetchExistingMembership(
     source_track_id: string | null;
     position: number;
   }[]) {
-    if (r.source_track_id) out.set(r.source_track_id, { trackId: r.track_id, position: r.position });
+    if (r.source_track_id)
+      out.set(r.source_track_id, { trackId: r.track_id, position: r.position });
   }
   return out;
 }
@@ -144,17 +142,13 @@ async function syncPlaylist(p: SpotifyPlaylistSummary): Promise<{
   removed: number;
   total: number;
 }> {
-  const prev = await existingPlaylistState(p.id);
-  // Skip only if snapshot matches AND the stored track_count agrees with
-  // Spotify's — the latter catches playlists left half-written by a prior
-  // sync that crashed after upserting the snapshot but before finishing the
-  // membership diff.
-  if (
-    prev &&
-    prev.snapshotId &&
-    prev.snapshotId === p.snapshotId &&
-    prev.trackCount === p.trackCount
-  ) {
+  // snapshot_id is written only after the membership diff succeeds
+  // (finalizePlaylist below), so a matching snapshot_id is proof that the last
+  // sync ran to completion. Don't gate on track_count: our stored count is
+  // post-filter (locals/tombstones/dedup removed) while Spotify's is raw, so
+  // they can diverge permanently and force a needless full re-sync every run.
+  const prevSnapshotId = await existingSnapshotId(p.id);
+  if (prevSnapshotId && prevSnapshotId === p.snapshotId) {
     return { status: "skipped", added: 0, removed: 0, total: 0 };
   }
 
@@ -259,9 +253,7 @@ async function main() {
         synced += 1;
         totalAdded += r.added;
         totalRemoved += r.removed;
-        console.log(
-          `synced "${p.name}" (+${r.added} -${r.removed}, ${r.total} total)`,
-        );
+        console.log(`synced "${p.name}" (+${r.added} -${r.removed}, ${r.total} total)`);
       } else {
         skipped += 1;
         console.log(`skipped "${p.name}" (snapshot unchanged)`);

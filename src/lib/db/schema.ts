@@ -433,3 +433,32 @@ export const runPhotos = pgTable(
 
 export type RunPhoto = typeof runPhotos.$inferSelect;
 export type NewRunPhoto = typeof runPhotos.$inferInsert;
+
+// One row per cron invocation. The DO droplet's cron-wrapper.sh POSTs a
+// "start" event (which inserts a row with status='running') and, after the
+// job exits, a "end" event that fills in finishedAt/status/duration/logTail.
+// `source` distinguishes scheduled runs from ones triggered manually via
+// /admin/crons.
+export const cronRuns = pgTable(
+  "cron_runs",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    jobName: text("job_name").notNull(),
+    source: text("source", { enum: ["cron", "manual"] }).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    status: text("status", { enum: ["running", "success", "failure"] }).notNull(),
+    exitCode: integer("exit_code"),
+    durationMs: integer("duration_ms"),
+    logTail: text("log_tail"),
+    stats: jsonb("stats"),
+  },
+  (t) => [index("cron_runs_job_started_idx").on(t.jobName, t.startedAt.desc())],
+);
+
+export type CronRun = typeof cronRuns.$inferSelect;
+export type NewCronRun = typeof cronRuns.$inferInsert;

@@ -41,6 +41,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `LOCAL_FIT_DIR` - Dev only. Directory scanned when `getParsedFit` sees a `local:<md5>` `drive_file_id` (rows inserted via `syncRuns.ts --file`). Skipped in production so a leaked env var can't smuggle in an arbitrary local path.
   - `NEXT_PUBLIC_MAP_STYLE_URL` - Optional. Overrides the default inline OSM raster style used by `/runs` maps. Point at a hosted MapLibre style URL (e.g. `https://tiles.openfreemap.org/styles/positron`) or a `pmtiles://...` URL for a self-hosted vector basemap.
   - `NEXT_PUBLIC_MAPTILER_KEY` - Reserved for the real-3D terrain integration on the `/runs/[id]` flyover. Not currently consumed: enabling `setTerrain(...)` on MapLibre v6 triggers a shader crash after ~40s of camera panning (tracked in GH #13), so the flyover ships pitched 2D for now. Safe to set — it's a no-op until the integration is fixed.
+  - `CRON_REPORT_SECRET` - Required for `/api/cron/report`. Shared bearer token that the DO droplet's `cron-wrapper.sh` presents when reporting a job's start/end. Rotating it means updating the droplet's env in tandem. `openssl rand -hex 32` works.
+  - `CRON_TRIGGER_URL` - Base URL of the droplet's trigger service (e.g. `https://crons.rahulvaidun.com`). Called by `/api/cron/trigger` when the owner clicks Run now on `/admin/crons`. Unset ⇒ Run now returns 503.
+  - `CRON_TRIGGER_TOKEN` - Bearer token accepted by the droplet's trigger service. Distinct from `CRON_REPORT_SECRET` so a leaked report token can't remotely spawn jobs.
 
 ## Architecture Overview
 

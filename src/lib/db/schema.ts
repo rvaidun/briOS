@@ -206,6 +206,64 @@ export const listens = pgTable(
 export type Listen = typeof listens.$inferSelect;
 export type NewListen = typeof listens.$inferInsert;
 
+// One row per owned playlist. `snapshot_id` is Spotify's opaque change token —
+// the sync short-circuits when it matches, avoiding a full track fetch for
+// unchanged playlists.
+export const playlists = pgTable(
+  "playlists",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    source: text("source", { enum: ["spotify"] }).notNull(),
+    sourcePlaylistId: text("source_playlist_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    imageUrl: text("image_url"),
+    ownerName: text("owner_name"),
+    snapshotId: text("snapshot_id"),
+    trackCount: integer("track_count"),
+    url: text("url"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => [
+    uniqueIndex("playlists_source_playlist_id_uniq").on(t.source, t.sourcePlaylistId),
+    index("playlists_name_idx").on(t.name),
+  ],
+);
+
+export type Playlist = typeof playlists.$inferSelect;
+export type NewPlaylist = typeof playlists.$inferInsert;
+
+// Junction between playlists and canonical tracks. Playlist membership is
+// replaced wholesale on each sync (delete+insert inside a snapshot_id-gated
+// block), so `position` reflects the current ordering, not an append log.
+export const playlistTracks = pgTable(
+  "playlist_tracks",
+  {
+    playlistId: uuid("playlist_id")
+      .notNull()
+      .references(() => playlists.id, { onDelete: "cascade" }),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    addedAt: timestamp("added_at", { withTimezone: true }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.playlistId, t.trackId] }),
+    index("playlist_tracks_track_id_idx").on(t.trackId),
+  ],
+);
+
+export type PlaylistTrack = typeof playlistTracks.$inferSelect;
+export type NewPlaylistTrack = typeof playlistTracks.$inferInsert;
+
 // Visitor-signed guestbook entries. `drawing_svg` is a sanitized SVG string
 // (paths only — script/handler/href stripped in the API before insert), so
 // pages can safely render it via dangerouslySetInnerHTML. `ip_hash` lets us

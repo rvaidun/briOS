@@ -4,6 +4,7 @@ import { FileText2 } from "@/components/icons/FileText2";
 import { FountainPen } from "@/components/icons/FountainPen";
 import { Headphones3 } from "@/components/icons/Headphones3";
 import { Home } from "@/components/icons/Home";
+import { Network } from "@/components/icons/Network";
 import { Photo } from "@/components/icons/Photo";
 import { PinOnMap } from "@/components/icons/PinOnMap";
 import { Sneaker } from "@/components/icons/Sneaker";
@@ -62,6 +63,16 @@ export const navigationItems: NavigationItem[] = [
     icon: Headphones3,
     keywords: ["listening", "music", "audio"],
     isActive: (pathname) => pathname === "/listening",
+    section: "main",
+  },
+
+  {
+    id: "playlist-graph",
+    label: "Playlist Graph",
+    href: "/playlists/graph",
+    icon: Network,
+    keywords: ["playlists", "graph", "network", "cluster", "music", "songs"],
+    isActive: (pathname) => pathname.startsWith("/playlists"),
     section: "main",
   },
 

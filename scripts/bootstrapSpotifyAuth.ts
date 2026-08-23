@@ -11,9 +11,13 @@
  * the `code` query param from the URL bar and paste it here.
  */
 import { saveOAuthTokens } from "@/lib/db/oauth";
-import { exchangeAuthCode, getAuthorizationUrl } from "@/lib/spotify";
+import { exchangeAuthCode, fetchSpotifyUserId, getAuthorizationUrl } from "@/lib/spotify";
 
 const redirectUri = process.env.SPOTIFY_REDIRECT_URI ?? "http://localhost/callback/";
+const ownerId = process.env.SPOTIFY_OWNER_USER_ID;
+if (!ownerId) {
+  throw new Error("SPOTIFY_OWNER_USER_ID must be set — refusing to save unknown-account tokens");
+}
 
 console.log("Open this URL in your browser, authorize, then paste the `code` query param:");
 console.log("");
@@ -28,6 +32,14 @@ const code = (await new Promise<string>((resolve) => {
 if (!code) throw new Error("no code provided");
 
 const tokens = await exchangeAuthCode(code, redirectUri);
+const spotifyUserId = await fetchSpotifyUserId(tokens.accessToken);
+if (spotifyUserId !== ownerId) {
+  throw new Error(
+    `Authorized account (${spotifyUserId}) does not match SPOTIFY_OWNER_USER_ID (${ownerId}) — refusing to save`,
+  );
+}
 await saveOAuthTokens("spotify", tokens);
-console.log("✓ Spotify tokens saved. Access token expires at", tokens.expiresAt.toISOString());
+console.log(
+  `✓ Spotify tokens saved for ${spotifyUserId}. Access token expires at ${tokens.expiresAt.toISOString()}`,
+);
 process.exit(0);

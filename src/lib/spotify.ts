@@ -1,4 +1,4 @@
-import { getOAuthTokens, saveOAuthTokens } from "./db/oauth";
+import { deleteOAuthTokens, getOAuthTokens, saveOAuthTokens } from "./db/oauth";
 
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
 const SPOTIFY_RECENTLY_PLAYED_URL = "https://api.spotify.com/v1/me/player/recently-played";
@@ -111,7 +111,17 @@ export async function getValidSpotifyAccessToken(): Promise<string> {
     return stored.accessToken;
   }
 
-  const refreshed = await refreshAccessToken(stored.refreshToken);
+  let refreshed;
+  try {
+    refreshed = await refreshAccessToken(stored.refreshToken);
+  } catch (err) {
+    // Spotify's July 2026 policy: on invalid_grant, discard the stored token
+    // (no retries) and force the caller through the re-auth flow.
+    if (err instanceof SpotifyRefreshTokenExpiredError) {
+      await deleteOAuthTokens("spotify");
+    }
+    throw err;
+  }
   await saveOAuthTokens("spotify", {
     accessToken: refreshed.accessToken,
     refreshToken: refreshed.refreshToken ?? stored.refreshToken,
@@ -167,6 +177,148 @@ export async function fetchSpotifyRecentlyPlayed(limit = 50): Promise<SpotifyRec
   }));
 }
 
+export type SpotifyPlaylistSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  ownerName: string | null;
+  snapshotId: string;
+  trackCount: number;
+  url: string | null;
+};
+
+export type SpotifyPlaylistTrack = {
+  trackId: string;
+  isrc: string | undefined;
+  name: string;
+  artists: SpotifyArtistRef[];
+  album: SpotifyAlbumRef;
+  url: string | undefined;
+  image: string | undefined;
+  durationMs: number;
+  addedAt: Date | null;
+  position: number;
+};
+
+type SpotifyPlaylistsPage = {
+  next: string | null;
+  items: {
+    id: string;
+    name: string;
+    description: string | null;
+    // Spotify returns `null` (not `[]`) for playlists with no cover image.
+    images: { url: string }[] | null;
+    owner: { id: string; display_name: string | null };
+    snapshot_id: string;
+    tracks: { total: number };
+    external_urls?: { spotify?: string };
+  }[];
+};
+
+// Walks `GET /v1/me/playlists`, yielding only playlists whose owner matches
+// SPOTIFY_OWNER_USER_ID. Callers must supply the owner id — the fetcher
+// intentionally has no default so a misconfigured cron can't silently ingest
+// every playlist the token can see.
+export async function* fetchOwnedPlaylists(
+  ownerUserId: string,
+): AsyncGenerator<SpotifyPlaylistSummary> {
+  const accessToken = await getValidSpotifyAccessToken();
+  let url: string | null = "https://api.spotify.com/v1/me/playlists?limit=50";
+  while (url) {
+    const resp: Response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!resp.ok) {
+      throw new Error(`Spotify playlists fetch failed: ${resp.status} ${await resp.text()}`);
+    }
+    const page = (await resp.json()) as SpotifyPlaylistsPage;
+    for (const p of page.items) {
+      if (p.owner.id !== ownerUserId) continue;
+      yield {
+        id: p.id,
+        name: p.name,
+        description: p.description ?? null,
+        imageUrl: p.images?.[0]?.url ?? null,
+        ownerName: p.owner.display_name ?? null,
+        snapshotId: p.snapshot_id,
+        trackCount: p.tracks.total,
+        url: p.external_urls?.spotify ?? null,
+      };
+    }
+    url = page.next;
+  }
+}
+
+type SpotifyPlaylistTracksPage = {
+  next: string | null;
+  items: {
+    added_at: string | null;
+    is_local: boolean;
+    track: {
+      id: string;
+      name: string;
+      duration_ms: number;
+      external_urls?: { spotify?: string };
+      external_ids?: { isrc?: string };
+      artists: { id: string; name: string }[];
+      album: {
+        id: string;
+        name: string;
+        images: { url: string }[] | null;
+        release_date?: string;
+      };
+    } | null;
+  }[];
+};
+
+// Walks `GET /v1/playlists/{id}/tracks`, skipping local files and tombstoned
+// (null) tracks. `position` is assigned monotonically from 0 across pages.
+export async function* fetchPlaylistTracks(
+  playlistId: string,
+): AsyncGenerator<SpotifyPlaylistTrack> {
+  const accessToken = await getValidSpotifyAccessToken();
+  let url: string | null = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
+  let position = 0;
+  while (url) {
+    const resp: Response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!resp.ok) {
+      throw new Error(
+        `Spotify playlist tracks fetch failed for ${playlistId}: ${resp.status} ${await resp.text()}`,
+      );
+    }
+    const page = (await resp.json()) as SpotifyPlaylistTracksPage;
+    for (const item of page.items) {
+      if (item.is_local || !item.track || !item.track.id) {
+        position += 1;
+        continue;
+      }
+      const t = item.track;
+      yield {
+        trackId: t.id,
+        isrc: t.external_ids?.isrc,
+        name: t.name,
+        artists: t.artists.map((a) => ({ id: a.id, name: a.name })),
+        album: {
+          id: t.album.id,
+          name: t.album.name,
+          image: t.album.images?.[0]?.url,
+          releaseDate: t.album.release_date,
+        },
+        url: t.external_urls?.spotify,
+        image: t.album.images?.[0]?.url,
+        durationMs: t.duration_ms,
+        addedAt: item.added_at ? new Date(item.added_at) : null,
+        position,
+      };
+      position += 1;
+    }
+    url = page.next;
+  }
+}
+
 export async function fetchSpotifyUserId(accessToken: string): Promise<string> {
   const resp = await fetch(SPOTIFY_ME_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -210,14 +362,28 @@ export async function exchangeAuthCode(
   };
 }
 
-export function getAuthorizationUrl(redirectUri: string, state?: string): string {
+// Union of every scope any surface in this app needs. Kept in one place so the
+// bootstrap CLI and the /api/auth/spotify/* web flow always request the same
+// set — if they drift, a re-auth via one path silently strips capabilities
+// from the other.
+export const SPOTIFY_SCOPES = [
+  "user-read-recently-played",
+  "playlist-read-private",
+  "playlist-read-collaborative",
+] as const;
+
+export function getAuthorizationUrl(
+  redirectUri: string,
+  state?: string,
+  scopes: readonly string[] = SPOTIFY_SCOPES,
+): string {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   if (!clientId) throw new Error("SPOTIFY_CLIENT_ID must be set");
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
     redirect_uri: redirectUri,
-    scope: "user-read-recently-played",
+    scope: scopes.join(" "),
   });
   if (state) params.set("state", state);
   return `https://accounts.spotify.com/authorize?${params.toString()}`;

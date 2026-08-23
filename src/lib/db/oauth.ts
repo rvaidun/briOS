@@ -7,6 +7,7 @@ export type OAuthTokens = {
   accessToken: string;
   refreshToken: string | null;
   expiresAt: Date | null;
+  updatedAt?: Date;
 };
 
 export async function getOAuthTokens(source: string): Promise<OAuthTokens | null> {
@@ -17,6 +18,7 @@ export async function getOAuthTokens(source: string): Promise<OAuthTokens | null
     accessToken: row.accessToken,
     refreshToken: row.refreshToken,
     expiresAt: row.expiresAt,
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -39,4 +41,11 @@ export async function saveOAuthTokens(source: string, tokens: OAuthTokens): Prom
         updatedAt: new Date(),
       },
     });
+}
+
+// Called when a refresh token is rejected as expired. Per Spotify's July 2026
+// policy, the stored token must be discarded before the user is redirected
+// through the sign-in flow — retrying an invalid_grant is explicitly forbidden.
+export async function deleteOAuthTokens(source: string): Promise<void> {
+  await db.delete(oauthTokens).where(eq(oauthTokens.source, source));
 }

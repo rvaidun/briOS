@@ -48,6 +48,14 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
   const [labelPct, setLabelPct] = useState(1);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  // Safari (desktop + iOS) has a much tighter per-tab memory ceiling than
+  // Chromium/Gecko; eagerly decoding ~1.7k remote album covers OOM-kills the
+  // tab. Gate image loading below to hub tracks only when we detect Safari.
+  const isSafari = useMemo(() => {
+    if (typeof navigator === "undefined") return false;
+    const ua = navigator.userAgent;
+    return /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(ua);
+  }, []);
   const labelColor = isDark ? "#f5f5f5" : "#111";
   const labelDimColor = isDark ? "rgba(200,200,200,0.35)" : "rgba(100,100,100,0.4)";
   const strokeColor = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.35)";
@@ -145,6 +153,11 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
     for (const n of forceData.nodes) {
       if (n.type !== "track" || !n.imageUrl) continue;
       if (cache.has(n.id)) continue;
+      // On Safari, only decode covers for tracks that will actually be labeled
+      // (the degree-threshold hubs). Everything else stays a colored dot —
+      // otherwise decoding ~1.7k images crashes the tab. As the label slider
+      // moves, this effect re-runs and pulls the newly-eligible covers in.
+      if (isSafari && n.degree < alwaysLabelTrackDegree) continue;
       cache.set(n.id, null); // placeholder to avoid double-loads
       pending += 1;
       const img = new Image();
@@ -169,7 +182,7 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
     return () => {
       cancelled = true;
     };
-  }, [forceData]);
+  }, [forceData, isSafari, alwaysLabelTrackDegree]);
 
   // Focus (click) takes precedence over hover — locked-in focus persists so
   // you can hover other nodes to inspect edges without breaking the frame.

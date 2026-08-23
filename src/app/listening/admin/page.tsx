@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AdminNav } from "@/app/admin/AdminNav";
 import { TopBar } from "@/components/TopBar";
 import { requireOwner } from "@/lib/auth/user";
 import { listAllPlaylistsForAdmin } from "@/lib/db/playlists";
@@ -24,6 +25,7 @@ export default async function ListeningAdminPage() {
       <TopBar>
         <div className="flex-1 text-sm font-semibold">Listening · Admin</div>
       </TopBar>
+      <AdminNav />
       <div
         data-scrollable
         className="flex flex-1 flex-col overflow-x-hidden px-4 pt-14 pb-[calc(env(safe-area-inset-bottom)+6rem)] md:overflow-x-visible md:overflow-y-auto md:px-6 md:pt-6 md:pb-6"

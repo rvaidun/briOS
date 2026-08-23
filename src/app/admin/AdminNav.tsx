@@ -5,16 +5,17 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-// Hub-and-spoke nav shown on /admin and /admin/crons. The other admin pages
-// (/admin/users, /guestbook/admin, /runs/admin, /listening/admin) don't share
-// this shell — they're reached via the external links here.
-const items: readonly { href: string; label: string; external?: boolean }[] = [
+// Cross-section admin nav rendered under the TopBar of every admin surface.
+// /guestbook/admin, /runs/admin, /listening/admin live outside /admin's
+// segment tree so they each import this directly (rather than inheriting via
+// layout). Keep this list in sync as new admin pages land.
+const items: readonly { href: string; label: string }[] = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/crons", label: "Crons" },
   { href: "/admin/users", label: "Users" },
-  { href: "/guestbook/admin", label: "Guestbook", external: true },
-  { href: "/runs/admin", label: "Runs", external: true },
-  { href: "/listening/admin", label: "Listening", external: true },
+  { href: "/guestbook/admin", label: "Guestbook" },
+  { href: "/runs/admin", label: "Runs" },
+  { href: "/listening/admin", label: "Listening" },
 ];
 
 export function AdminNav() {
@@ -35,7 +36,6 @@ export function AdminNav() {
             )}
           >
             {item.label}
-            {item.external && <span className="text-quaternary ml-1 text-xs">↗</span>}
           </Link>
         );
       })}

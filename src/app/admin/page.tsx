@@ -40,32 +40,6 @@ export default async function AdminOverviewPage() {
               ))}
             </div>
           </section>
-
-          <section className="flex flex-col gap-3">
-            <h2 className="text-primary text-lg font-medium">Other admin pages</h2>
-            <div className="border-secondary flex flex-col divide-y rounded-md border">
-              <QuickLink
-                href="/admin/users"
-                title="Users"
-                description="Approve, deny, or manage roles for signed-in Google accounts."
-              />
-              <QuickLink
-                href="/guestbook/admin"
-                title="Guestbook"
-                description="Review visitor drawings; delete abuse."
-              />
-              <QuickLink
-                href="/runs/admin"
-                title="Runs"
-                description="Rename runs and attach photo strips."
-              />
-              <QuickLink
-                href="/listening/admin"
-                title="Listening"
-                description="Hide playlists from the public grid and graph."
-              />
-            </div>
-          </section>
         </div>
       </div>
     </>
@@ -100,29 +74,6 @@ function JobCard({ job }: { job: JobSummary }) {
         </div>
       )}
     </div>
-  );
-}
-
-function QuickLink({
-  href,
-  title,
-  description,
-}: {
-  href: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="hover:bg-secondary flex items-center gap-3 px-3 py-2 transition-colors"
-    >
-      <div className="flex-1">
-        <div className="text-primary text-sm font-medium">{title}</div>
-        <div className="text-tertiary text-xs">{description}</div>
-      </div>
-      <span className="text-quaternary text-xs">→</span>
-    </Link>
   );
 }
 

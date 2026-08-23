@@ -6,6 +6,7 @@ import { UserRole, type UserRoleValue } from "@/lib/db/schema";
 import { listAllUsers } from "@/lib/db/users";
 import { createMetadata } from "@/lib/metadata";
 
+import { AdminNav } from "../AdminNav";
 import { RoleControl } from "./RoleControl";
 
 export const metadata: Metadata = createMetadata({
@@ -25,6 +26,7 @@ export default async function UsersAdminPage() {
       <TopBar>
         <div className="flex-1 text-sm font-medium">Users · Admin</div>
       </TopBar>
+      <AdminNav />
       <div data-scrollable className="flex-1 overflow-y-auto pt-11 md:pt-0">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-8">
           <div className="flex flex-col gap-1">

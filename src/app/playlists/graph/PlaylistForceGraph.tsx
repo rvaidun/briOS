@@ -1,7 +1,7 @@
 "use client";
 
-import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { usePlaylistGraph } from "@/hooks/usePlaylistGraph";
@@ -29,12 +29,27 @@ const HIGHLIGHT_COLOR = "#f97316"; // orange-500
 // pulls them into full contrast.
 const MIN_TRACK_BRIGHTNESS = 0.08;
 
+// Blit a decoded image to a 32×32 offscreen canvas and return that. Node radii
+// cap at ~10px so 32px is more than enough visually, and per-cover memory drops
+// from ~1.6MB (640×640×4 decoded) to ~4KB — the difference between "iPhone
+// Safari OOMs the tab" and "totally fine". The source Image goes out of scope
+// after this call and gets GC'd.
+function downscaleToThumb(img: HTMLImageElement): HTMLCanvasElement | null {
+  const c = document.createElement("canvas");
+  c.width = 32;
+  c.height = 32;
+  const tctx = c.getContext("2d");
+  if (!tctx) return null;
+  tctx.drawImage(img, 0, 0, 32, 32);
+  return c;
+}
+
 export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph }) {
   const { data } = usePlaylistGraph(initialData);
   const graph = data ?? initialData;
 
   const containerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const graphRef = useRef<any>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [hovered, setHovered] = useState<ForceNode | null>(null);
@@ -46,6 +61,11 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
   // Default 1 → only the true mega-hubs are labeled at first paint; slider
   // lets you push toward "label everything".
   const [labelPct, setLabelPct] = useState(1);
+  // Playlists the user has toggled off — their node and every edge sourced
+  // from them are stripped out of forceData before layout. Motivating case:
+  // "Liked Songs" contains everything and dwarfs every other cluster; hiding
+  // it lets the remaining playlist-to-playlist song overlaps become legible.
+  const [hiddenPlaylistIds, setHiddenPlaylistIds] = useState<Set<string>>(() => new Set());
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   // Safari (desktop + iOS) has a much tighter per-tab memory ceiling than
@@ -79,10 +99,18 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
   // can pick a percentile cutoff without re-walking the whole graph on each
   // slider tick.
   const { forceData, sortedTrackDegrees } = useMemo(() => {
+    // Drop hidden playlists and any edges that source from them. Tracks that
+    // only appeared in a hidden playlist end up degree 0 and get filtered out
+    // below so the graph actually simplifies (rather than leaving orphan
+    // singletons floating around).
+    const visibleEdges = graph.edges.filter((e) => !hiddenPlaylistIds.has(e.source));
+
     const nodeMap = new Map<string, ForceNode>();
-    for (const n of graph.nodes)
+    for (const n of graph.nodes) {
+      if (n.type === "playlist" && hiddenPlaylistIds.has(n.id)) continue;
       nodeMap.set(n.id, { ...n, neighbors: new Set(), degree: 0, brightness: 1 });
-    for (const e of graph.edges) {
+    }
+    for (const e of visibleEdges) {
       nodeMap.get(e.source)?.neighbors.add(e.target);
       nodeMap.get(e.target)?.neighbors.add(e.source);
     }
@@ -94,6 +122,11 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
         if (n.degree > trackMax) trackMax = n.degree;
         trackDegrees.push(n.degree);
       }
+    }
+    // Orphan tracks (no visible playlist owns them) — remove after degree pass
+    // so trackMax reflects only what will actually render.
+    for (const [id, n] of nodeMap) {
+      if (n.type === "track" && n.degree === 0) nodeMap.delete(id);
     }
     for (const n of nodeMap.values()) {
       if (n.type === "track") {
@@ -109,13 +142,13 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       if (a.type !== b.type) return a.type === "playlist" ? 1 : -1;
       return a.degree - b.degree;
     });
-    const links = graph.edges.map((e) => ({ source: e.source, target: e.target }));
+    const links = visibleEdges.map((e) => ({ source: e.source, target: e.target }));
 
     return {
       forceData: { nodes, links },
       sortedTrackDegrees: trackDegrees,
     };
-  }, [graph]);
+  }, [graph, hiddenPlaylistIds]);
 
   // Derive the "always label" threshold from the slider — the (100 - labelPct)
   // percentile of the sorted degree array. Floored at 1 so labelPct=100 truly
@@ -138,33 +171,47 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
     g.d3ReheatSimulation?.();
   }, [forceData]);
 
-  // Lazily fetch album art per track. Successful loads stash the HTMLImageElement
-  // on a cache the draw loop reads from — until then, the node renders as a
-  // fallback dot. Failed loads mark the entry as null so we don't retry every
-  // animation frame. A ref (not state) keeps the object identity stable so
-  // ForceGraph2D doesn't reset on each image landing.
-  const imageCacheRef = useRef<Map<string, HTMLImageElement | null>>(new Map());
+  // Lazily fetch cover art. On decode, blit each image to a tiny 32×32 offscreen
+  // canvas and cache *that* instead of the full-size HTMLImageElement. Node
+  // radii top out at ~10px so 32px is more than enough visually, and per-cover
+  // memory drops from ~1.6MB (640×640×4 decoded) to ~4KB — the difference
+  // between "iPhone Safari OOMs the tab" and "totally fine". The source Image
+  // goes out of scope and gets GC'd. Both HTMLImageElement and HTMLCanvasElement
+  // are valid drawImage sources so the render loop needs no change.
+  //
+  // On top of that, Safari (desktop + iOS) drains the queue serially — one
+  // decode in flight — so the transient decode-memory spike stays low, and
+  // waits for the user to zoom in before starting at all (see zoomedIn state)
+  // so first paint doesn't blow the budget on covers that render as dots.
+  const imageCacheRef = useRef<Map<string, HTMLImageElement | HTMLCanvasElement | null>>(new Map());
   const [, forceTick] = useState(0);
+  const [zoomedIn, setZoomedIn] = useState(false);
+
+  // Non-Safari: fire all image loads in parallel, batched redraws. Iterates the
+  // raw `graph` (not the filtered `forceData`) so toggling playlist visibility
+  // doesn't tear down in-flight loads and leave placeholder nulls that starve
+  // the retry — which is what used to happen when the "Liked Songs" seed
+  // fired post-mount and cancelled every in-flight cover on Chrome.
   useEffect(() => {
+    if (isSafari) return;
     const cache = imageCacheRef.current;
     let cancelled = false;
-    let pending = 0;
-    let sinceLastFlush = 0;
-    for (const n of forceData.nodes) {
-      if (n.type !== "track" || !n.imageUrl) continue;
-      if (cache.has(n.id)) continue;
-      // On Safari, only decode covers for tracks that will actually be labeled
-      // (the degree-threshold hubs). Everything else stays a colored dot —
-      // otherwise decoding ~1.7k images crashes the tab. As the label slider
-      // moves, this effect re-runs and pulls the newly-eligible covers in.
-      if (isSafari && n.degree < alwaysLabelTrackDegree) continue;
+
+    const queue: Array<{ id: string; url: string }> = [];
+    for (const n of graph.nodes) {
+      if (!n.imageUrl || cache.has(n.id)) continue;
       cache.set(n.id, null); // placeholder to avoid double-loads
-      pending += 1;
+      queue.push({ id: n.id, url: n.imageUrl });
+    }
+
+    let pending = queue.length;
+    let sinceLastFlush = 0;
+    for (const { id, url } of queue) {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
         if (cancelled) return;
-        cache.set(n.id, img);
+        cache.set(id, downscaleToThumb(img));
         sinceLastFlush += 1;
         // Batch redraw triggers — one setState per animation frame is plenty
         // and avoids a re-render storm on the first paint.
@@ -177,12 +224,99 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       img.onerror = () => {
         pending -= 1;
       };
-      img.src = n.imageUrl;
+      img.src = url;
     }
+
     return () => {
       cancelled = true;
     };
-  }, [forceData, isSafari, alwaysLabelTrackDegree]);
+  }, [graph, isSafari]);
+
+  // Safari: drain the queue serially, and hold off until the user zooms in —
+  // at low zoom every cover renders as a sub-10px dot and decoding thousands
+  // of them just to draw as dots is what OOMs iPhone Safari.
+  useEffect(() => {
+    if (!isSafari || !zoomedIn) return;
+    const cache = imageCacheRef.current;
+    let cancelled = false;
+
+    const queue: Array<{ id: string; url: string }> = [];
+    for (const n of graph.nodes) {
+      if (!n.imageUrl || cache.has(n.id)) continue;
+      cache.set(n.id, null);
+      queue.push({ id: n.id, url: n.imageUrl });
+    }
+
+    const loadNext = () => {
+      if (cancelled) return;
+      const next = queue.shift();
+      if (!next) return;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        if (cancelled) return;
+        cache.set(next.id, downscaleToThumb(img));
+        forceTick((v) => v + 1);
+        // Yield a tick between decodes so GC can reclaim the full-size Image
+        // before we allocate the next one.
+        setTimeout(loadNext, 20);
+      };
+      img.onerror = () => {
+        if (cancelled) return;
+        setTimeout(loadNext, 20);
+      };
+      img.src = next.url;
+    };
+    loadNext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [graph, isSafari, zoomedIn]);
+
+  // Seed the hidden set with "Liked Songs" on first mount. It contains every
+  // saved track and dwarfs every other cluster in the layout — hiding it by
+  // default lets the actual playlist-to-playlist overlaps read cleanly. Run
+  // in an effect (not a useState initializer) so SSR and client agree on the
+  // initial `PlaylistToggleControl` text and don't trigger a hydration
+  // mismatch.
+  const likedSongsSeededRef = useRef(false);
+  useEffect(() => {
+    if (likedSongsSeededRef.current) return;
+    likedSongsSeededRef.current = true;
+    const liked = graph.nodes.find(
+      (n) => n.type === "playlist" && n.name.toLowerCase().includes("liked songs"),
+    );
+    // One-time seed from client-only data — the setState-in-effect warning
+    // doesn't apply since this runs at most once for the lifetime of the
+    // component and can't cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (liked) setHiddenPlaylistIds(new Set([liked.id]));
+  }, [graph]);
+
+  // Full playlist list for the show/hide control — sourced from the raw graph
+  // so hidden playlists still appear (with their checkbox off) and can be
+  // toggled back on.
+  const allPlaylists = useMemo(
+    () =>
+      graph.nodes
+        .filter((n): n is Extract<PlaylistGraphNode, { type: "playlist" }> => n.type === "playlist")
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [graph],
+  );
+
+  const togglePlaylistHidden = useCallback((id: string) => {
+    setHiddenPlaylistIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    // If the toggled playlist was the current focus, drop it so the legend
+    // doesn't keep advertising a node that's no longer in the graph.
+    setFocused((cur) => (cur && cur.id === id ? null : cur));
+  }, []);
+  const showAllPlaylists = useCallback(() => setHiddenPlaylistIds(new Set()), []);
 
   // Focus (click) takes precedence over hover — locked-in focus persists so
   // you can hover other nodes to inspect edges without breaking the frame.
@@ -212,11 +346,12 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       const baseAlpha = isPlaylist ? 1 : node.brightness;
       ctx.globalAlpha = isHighlighted ? 1 : isDimmed ? Math.min(baseAlpha, 0.15) : baseAlpha;
 
-      const img = !isPlaylist ? imageCacheRef.current.get(node.id) : null;
+      const img = imageCacheRef.current.get(node.id);
       if (img) {
-        // Clip to a circle, draw the album art, then stroke with either the
-        // highlight color or a subtle border. Skip stroke when dimmed to keep
-        // the fade clean.
+        // Clip to a circle, draw the cover art, then stroke. Playlists get
+        // a thicker Spotify-green ring so anchor nodes still read distinctly
+        // from track covers; tracks keep the subtle theme-derived border.
+        // Highlight (hover/focus) overrides both.
         ctx.save();
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, 2 * Math.PI);
@@ -226,17 +361,17 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
         ctx.restore();
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, 2 * Math.PI);
-        ctx.lineWidth = isHighlighted ? 1.5 : 0.4;
-        ctx.strokeStyle = isHighlighted ? HIGHLIGHT_COLOR : strokeColor;
+        ctx.lineWidth = isHighlighted ? 1.5 : isPlaylist ? 1.5 : 0.4;
+        ctx.strokeStyle = isHighlighted
+          ? HIGHLIGHT_COLOR
+          : isPlaylist
+            ? PLAYLIST_COLOR
+            : strokeColor;
         ctx.stroke();
       } else {
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, 2 * Math.PI);
-        ctx.fillStyle = isHighlighted
-          ? HIGHLIGHT_COLOR
-          : isPlaylist
-            ? PLAYLIST_COLOR
-            : TRACK_COLOR;
+        ctx.fillStyle = isHighlighted ? HIGHLIGHT_COLOR : isPlaylist ? PLAYLIST_COLOR : TRACK_COLOR;
         ctx.fill();
       }
 
@@ -272,9 +407,7 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       const s = typeof l.source === "string" ? l.source : l.source.id;
       const t = typeof l.target === "string" ? l.target : l.target.id;
       const touchesFocal =
-        s === focalNode?.id ||
-        t === focalNode?.id ||
-        (highlightSet.has(s) && highlightSet.has(t));
+        s === focalNode?.id || t === focalNode?.id || (highlightSet.has(s) && highlightSet.has(t));
       return touchesFocal ? "rgba(249,115,22,0.85)" : dimmedLinkColor;
     },
     [highlightSet, focalNode, restingLinkColor, dimmedLinkColor],
@@ -310,6 +443,7 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
         onNodeHover={(node) => setHovered((node as ForceNode | null) ?? null)}
         onNodeClick={(node) => setFocused((node as ForceNode | null) ?? null)}
         onBackgroundClick={() => setFocused(null)}
+        onZoom={(t: { k: number }) => setZoomedIn((prev) => (prev ? t.k >= 1.2 : t.k >= 1.5))}
         // Wider layout so shared-song clusters have room to separate from the
         // singleton haze. Stronger repulsion + longer link distance turn the
         // hairball into readable communities.
@@ -320,7 +454,21 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
         backgroundColor="transparent"
       />
       <Legend focused={focused} onClearFocus={() => setFocused(null)} />
-      <LabelPctControl value={labelPct} onChange={setLabelPct} threshold={alwaysLabelTrackDegree} />
+      {/* Stack both control panels at top-right so they're visible on mobile
+          without being hidden behind Safari's bottom URL bar. */}
+      <div className="absolute top-3 right-3 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
+        <LabelPctControl
+          value={labelPct}
+          onChange={setLabelPct}
+          threshold={alwaysLabelTrackDegree}
+        />
+        <PlaylistToggleControl
+          playlists={allPlaylists}
+          hidden={hiddenPlaylistIds}
+          onToggle={togglePlaylistHidden}
+          onShowAll={showAllPlaylists}
+        />
+      </div>
     </div>
   );
 }
@@ -335,7 +483,7 @@ function LabelPctControl({
   threshold: number;
 }) {
   return (
-    <div className="border-secondary text-secondary absolute top-3 right-3 flex flex-col gap-1.5 rounded-md border bg-white/90 px-3 py-2 text-xs backdrop-blur dark:bg-neutral-950/90">
+    <div className="border-secondary text-secondary flex flex-col gap-1.5 rounded-md border bg-white/90 px-3 py-2 text-xs backdrop-blur dark:bg-neutral-950/90">
       <label className="flex items-center gap-2">
         <span>Label top</span>
         <span className="text-primary min-w-[2.25rem] text-right font-semibold tabular-nums">
@@ -391,6 +539,71 @@ function Legend({
       ) : (
         <span className="text-secondary">Click any node to focus its cluster</span>
       )}
+    </div>
+  );
+}
+
+function PlaylistToggleControl({
+  playlists,
+  hidden,
+  onToggle,
+  onShowAll,
+}: {
+  playlists: Extract<PlaylistGraphNode, { type: "playlist" }>[];
+  hidden: Set<string>;
+  onToggle: (id: string) => void;
+  onShowAll: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const hiddenCount = hidden.size;
+  return (
+    <div className="border-secondary text-secondary flex w-64 max-w-full flex-col rounded-md border bg-white/90 text-xs backdrop-blur dark:bg-neutral-950/90">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between gap-3 px-3 py-2"
+      >
+        <span className="text-primary font-medium">Playlists</span>
+        <span className="tabular-nums">
+          {hiddenCount > 0 ? `${hiddenCount} hidden` : `${playlists.length} shown`}
+          <span className="ml-2 opacity-60">{open ? "▾" : "▸"}</span>
+        </span>
+      </button>
+      {open ? (
+        <div className="border-secondary flex max-h-64 flex-col overflow-y-auto border-t p-1">
+          {hiddenCount > 0 ? (
+            <button
+              type="button"
+              onClick={onShowAll}
+              className="text-primary mb-1 rounded px-2 py-1 text-left hover:bg-neutral-100 dark:hover:bg-neutral-900"
+            >
+              Show all
+            </button>
+          ) : null}
+          {playlists.map((p) => {
+            const isHidden = hidden.has(p.id);
+            return (
+              <label
+                key={p.id}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-900"
+              >
+                <input
+                  type="checkbox"
+                  checked={!isHidden}
+                  onChange={() => onToggle(p.id)}
+                  className="accent-[#1db954]"
+                />
+                <span className="text-primary flex-1 truncate" title={p.name}>
+                  {p.name}
+                </span>
+                {p.trackCount != null ? (
+                  <span className="tabular-nums opacity-60">{p.trackCount}</span>
+                ) : null}
+              </label>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -12,7 +12,10 @@ export type TopListItem = {
   imageUrl?: string | null;
   spotifyUrl?: string | null;
   href?: string;
-  plays: number;
+  // Omit to render a plays-less row (used by playlist detail, which has no
+  // per-track play count). When every item omits it, the count column and the
+  // background width bar are skipped entirely.
+  plays?: number;
 };
 
 export function TopList({
@@ -33,7 +36,8 @@ export function TopList({
       ) : (
         <ol className="space-y-2">
           {items.map((item, i) => {
-            const pct = Math.max((item.plays / max) * 100, 4);
+            const hasPlays = typeof item.plays === "number";
+            const pct = hasPlays ? Math.max((item.plays! / max) * 100, 4) : 0;
             return (
               <li
                 key={`${i}-${item.primary}`}
@@ -77,19 +81,23 @@ export function TopList({
                       </div>
                     )}
                   </div>
-                  <span className="text-tertiary flex-none text-xs tabular-nums">
-                    {item.plays.toLocaleString()}
-                  </span>
+                  {hasPlays ? (
+                    <span className="text-tertiary flex-none text-xs tabular-nums">
+                      {item.plays!.toLocaleString()}
+                    </span>
+                  ) : null}
                   {/* z-20 keeps the per-source icon links above the row-wide link overlay. */}
                   <span className="relative z-20">
                     <SourceLinks spotifyUrl={item.spotifyUrl} />
                   </span>
                 </div>
-                <div
-                  aria-hidden
-                  className="bg-secondary/40 pointer-events-none absolute inset-0 -z-10 rounded"
-                  style={{ width: `${pct}%` }}
-                />
+                {hasPlays ? (
+                  <div
+                    aria-hidden
+                    className="bg-secondary/40 pointer-events-none absolute inset-0 -z-10 rounded"
+                    style={{ width: `${pct}%` }}
+                  />
+                ) : null}
               </li>
             );
           })}

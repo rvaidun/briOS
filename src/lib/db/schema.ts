@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   date,
   doublePrecision,
   index,
@@ -224,6 +225,10 @@ export const playlists = pgTable(
     snapshotId: text("snapshot_id"),
     trackCount: integer("track_count"),
     url: text("url"),
+    // Owner-controlled visibility. When true, the playlist and its edges are
+    // filtered out of the public grid and graph queries — but the sync still
+    // refreshes it, so flipping back to visible is instant.
+    hidden: boolean("hidden").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),

@@ -45,6 +45,16 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "i.scdn.co",
       },
+      // Spotify playlist cover CDN — round-robins across image-cdn-*.spotifycdn.com
+      {
+        protocol: "https",
+        hostname: "*.spotifycdn.com",
+      },
+      // User-uploaded playlist covers (mosaic / custom) on the misc CDN
+      {
+        protocol: "https",
+        hostname: "mosaic.scdn.co",
+      },
       // Apple Music CDN — round-robins across is1..is5-ssl.mzstatic.com
       {
         protocol: "https",

@@ -95,6 +95,7 @@ export function PrimarySidebar({
                       label={item.label}
                       href={item.href}
                       isActive={item.isActive?.(pathname) ?? false}
+                      indent={item.parentId ? 1 : 0}
                       onClick={() => {
                         if (isSmallScreen) {
                           setIsOpen(false);
@@ -121,6 +122,7 @@ export function SidebarItem({
   isActive,
   onClick,
   trailingAccessory,
+  indent = 0,
 }: {
   icon: React.ReactNode;
   label: string | React.ReactNode;
@@ -128,10 +130,14 @@ export function SidebarItem({
   isActive: boolean;
   onClick?: (e: React.MouseEvent) => void;
   trailingAccessory?: React.ReactNode;
+  // Nesting depth. Each level shifts the row right by one icon-width so
+  // sub-items visually roll up under their parent (the sidebar itself is flat).
+  indent?: number;
 }) {
   return (
     <Link href={href} onClick={onClick}>
       <div
+        style={indent > 0 ? { paddingLeft: `${0.5 + indent * 1.25}rem` } : undefined}
         className={cn("group/sidebar-item flex h-[30px] items-center gap-2 rounded-md px-2", {
           "hover:bg-black/5 dark:hover:bg-white/8": !isActive,
           "bg-black/5 hover:bg-black/5 dark:bg-white/8 dark:hover:bg-white/8": isActive,

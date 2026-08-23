@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import NextImage from "next/image";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -29,11 +31,12 @@ const HIGHLIGHT_COLOR = "#f97316"; // orange-500
 // pulls them into full contrast.
 const MIN_TRACK_BRIGHTNESS = 0.08;
 
-// Blit a decoded image to a 32×32 offscreen canvas and return that. Node radii
-// cap at ~10px so 32px is more than enough visually, and per-cover memory drops
-// from ~1.6MB (640×640×4 decoded) to ~4KB — the difference between "iPhone
-// Safari OOMs the tab" and "totally fine". The source Image goes out of scope
-// after this call and gets GC'd.
+// Blit a decoded image to a 32×32 offscreen canvas and return that. Safari-only:
+// node radii cap at ~10px so 32px is enough for the fit-to-node render, and
+// per-cover memory drops from ~1.6MB (640×640×4 decoded) to ~4KB — the
+// difference between "iPhone Safari OOMs the tab" and "totally fine". The
+// source Image goes out of scope after this call and gets GC'd. Chrome caches
+// the full-res image instead so covers stay sharp when zoomed in.
 function downscaleToThumb(img: HTMLImageElement): HTMLCanvasElement | null {
   const c = document.createElement("canvas");
   c.width = 32;
@@ -171,18 +174,16 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
     g.d3ReheatSimulation?.();
   }, [forceData]);
 
-  // Lazily fetch cover art. On decode, blit each image to a tiny 32×32 offscreen
-  // canvas and cache *that* instead of the full-size HTMLImageElement. Node
-  // radii top out at ~10px so 32px is more than enough visually, and per-cover
-  // memory drops from ~1.6MB (640×640×4 decoded) to ~4KB — the difference
-  // between "iPhone Safari OOMs the tab" and "totally fine". The source Image
-  // goes out of scope and gets GC'd. Both HTMLImageElement and HTMLCanvasElement
-  // are valid drawImage sources so the render loop needs no change.
-  //
-  // On top of that, Safari (desktop + iOS) drains the queue serially — one
-  // decode in flight — so the transient decode-memory spike stays low, and
+  // Lazily fetch cover art. Chrome caches the decoded full-res HTMLImageElement
+  // so covers stay sharp when the user zooms in. Safari (desktop + iOS) has a
+  // much tighter per-tab memory ceiling, so its path (a) blits each cover to
+  // a 32×32 offscreen canvas and caches that instead — dropping per-cover
+  // memory from ~1.6MB (640×640×4 decoded) to ~4KB — (b) drains the queue
+  // serially, one decode in flight so the transient spike stays low, and (c)
   // waits for the user to zoom in before starting at all (see zoomedIn state)
-  // so first paint doesn't blow the budget on covers that render as dots.
+  // so first paint doesn't blow the budget on covers that render as sub-10px
+  // dots. Both HTMLImageElement and HTMLCanvasElement are valid drawImage
+  // sources so the render loop needs no change.
   const imageCacheRef = useRef<Map<string, HTMLImageElement | HTMLCanvasElement | null>>(new Map());
   const [, forceTick] = useState(0);
   const [zoomedIn, setZoomedIn] = useState(false);
@@ -211,7 +212,7 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       img.crossOrigin = "anonymous";
       img.onload = () => {
         if (cancelled) return;
-        cache.set(id, downscaleToThumb(img));
+        cache.set(id, img);
         sinceLastFlush += 1;
         // Batch redraw triggers — one setState per animation frame is plenty
         // and avoids a re-render storm on the first paint.
@@ -468,6 +469,89 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
           onToggle={togglePlaylistHidden}
           onShowAll={showAllPlaylists}
         />
+      </div>
+      {focused ? <GraphNodeDetail node={focused} onClose={() => setFocused(null)} /> : null}
+    </div>
+  );
+}
+
+function GraphNodeDetail({ node, onClose }: { node: ForceNode; onClose: () => void }) {
+  const isPlaylist = node.type === "playlist";
+  return (
+    <div className="border-secondary text-secondary absolute right-3 bottom-3 flex w-72 max-w-[calc(100vw-1.5rem)] flex-col gap-3 rounded-md border bg-white/95 p-3 text-xs backdrop-blur dark:bg-neutral-950/95">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close details"
+        className="text-tertiary hover:text-primary absolute top-1.5 right-2 text-base leading-none transition-colors"
+      >
+        ×
+      </button>
+      <div className="flex items-start gap-3">
+        {node.imageUrl ? (
+          <NextImage
+            src={node.imageUrl}
+            width={56}
+            height={56}
+            alt=""
+            unoptimized
+            className={`size-14 flex-none object-cover ring-[0.5px] ring-black/10 dark:ring-white/10 ${
+              isPlaylist ? "rounded-md" : "rounded"
+            }`}
+          />
+        ) : (
+          <div
+            className={`size-14 flex-none bg-neutral-200 dark:bg-neutral-800 ${
+              isPlaylist ? "rounded-md" : "rounded"
+            }`}
+          />
+        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5 pr-4">
+          <div className="text-tertiary text-[10px] tracking-wide uppercase">
+            {isPlaylist ? "Playlist" : "Song"}
+          </div>
+          <div className="text-primary truncate text-sm font-semibold" title={node.name}>
+            {node.name}
+          </div>
+          {node.type === "track" && node.artist ? (
+            <div className="text-secondary truncate" title={node.artist}>
+              {node.artist}
+            </div>
+          ) : null}
+          {node.type === "playlist" ? (
+            <div className="text-secondary truncate">
+              {node.trackCount != null ? `${node.trackCount} tracks` : null}
+              {node.trackCount != null && node.ownerName ? " · " : null}
+              {node.ownerName ?? null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-tertiary tabular-nums">
+          {node.degree} {node.degree === 1 ? "connection" : "connections"}
+        </span>
+        <div className="flex items-center gap-2">
+          {node.type === "playlist" ? (
+            <Link
+              href={`/playlists/${node.id}`}
+              className="text-primary rounded border border-neutral-200 px-2 py-0.5 hover:bg-neutral-100 dark:border-neutral-800 dark:hover:bg-neutral-900"
+            >
+              View details
+            </Link>
+          ) : null}
+          {node.spotifyUrl ? (
+            <Link
+              href={node.spotifyUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded px-2 py-0.5 font-medium text-white"
+              style={{ backgroundColor: PLAYLIST_COLOR }}
+            >
+              Open in Spotify
+            </Link>
+          ) : null}
+        </div>
       </div>
     </div>
   );

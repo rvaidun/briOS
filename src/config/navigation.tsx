@@ -4,6 +4,7 @@ import { FileText2 } from "@/components/icons/FileText2";
 import { FountainPen } from "@/components/icons/FountainPen";
 import { Headphones3 } from "@/components/icons/Headphones3";
 import { Home } from "@/components/icons/Home";
+import { Music } from "@/components/icons/Music";
 import { Network } from "@/components/icons/Network";
 import { Photo } from "@/components/icons/Photo";
 import { PinOnMap } from "@/components/icons/PinOnMap";
@@ -25,6 +26,10 @@ export interface NavigationItem {
   // Note: this only gates *visibility*, not access — pages enforce their own
   // auth via requireApprovedUser() / requireOwner().
   access?: NavAccess;
+  // When set, the sidebar renders this entry as a visually indented sub-item
+  // of the given parent id. Ordering still comes from the array position, so
+  // sub-items should immediately follow their parent.
+  parentId?: string;
 }
 
 function canSee(item: NavigationItem, role: UserRoleValue | null): boolean {
@@ -67,13 +72,25 @@ export const navigationItems: NavigationItem[] = [
   },
 
   {
+    id: "playlists",
+    label: "Playlists",
+    href: "/playlists",
+    icon: Music,
+    keywords: ["playlists", "spotify", "music", "songs", "albums"],
+    isActive: (pathname) => pathname === "/playlists" || /^\/playlists\/(?!graph$)/.test(pathname),
+    section: "main",
+    parentId: "music",
+  },
+
+  {
     id: "playlist-graph",
-    label: "Playlist Graph",
+    label: "Graph",
     href: "/playlists/graph",
     icon: Network,
     keywords: ["playlists", "graph", "network", "cluster", "music", "songs"],
-    isActive: (pathname) => pathname.startsWith("/playlists"),
+    isActive: (pathname) => pathname.startsWith("/playlists/graph"),
     section: "main",
+    parentId: "music",
   },
 
   {

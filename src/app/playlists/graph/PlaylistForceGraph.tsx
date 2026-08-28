@@ -1,5 +1,10 @@
 "use client";
 
+// d3-force-3d ships no types; it's a transitive dep of react-force-graph-2d
+// (via force-graph) so importing directly is safe. Both forceX/forceY here
+// return a d3 force we hand to graphRef.d3Force("x" | "y", ...).
+// @ts-expect-error — no @types package published
+import { forceX, forceY } from "d3-force-3d";
 import dynamic from "next/dynamic";
 import NextImage from "next/image";
 import Link from "next/link";
@@ -167,13 +172,37 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
   // Tune the force simulation for readability at this scale: strong repulsion
   // pushes singletons out to the margins and longer link distance separates
   // playlist clusters, turning the hairball into readable communities.
-  useEffect(() => {
-    const g = graphRef.current;
+  // Extracted so the callback ref (below) can apply forces synchronously the
+  // moment the graph instance exists — before any sim ticks run. If we relied
+  // on a useEffect instead, the first frames would tick with default forces
+  // (no centering, unbounded repulsion range) and the graph would visibly
+  // "explode" outward on first paint before our forces kicked in.
+  const applyForces = useCallback((g: any) => {
     if (!g?.d3Force) return;
-    g.d3Force("charge")?.strength(-45).distanceMax(400);
+    g.d3Force("charge")?.strength(-45).distanceMax(300);
     g.d3Force("link")?.distance(60);
-    g.d3ReheatSimulation?.();
-  }, [forceData]);
+    // Pull every node gently toward origin so playlists whose songs don't
+    // overlap with anything else (no shared-song edges) don't drift out to
+    // infinity under the long-range repulsion. Balanced against charge so
+    // connected clusters still resolve their own spacing normally.
+    g.d3Force("x", forceX(0).strength(0.08));
+    g.d3Force("y", forceY(0).strength(0.08));
+  }, []);
+
+  const handleGraphRef = useCallback(
+    (instance: any) => {
+      graphRef.current = instance;
+      applyForces(instance);
+    },
+    [applyForces],
+  );
+
+  // On data changes (e.g. toggling a playlist) the sim internals rebuild —
+  // reapply forces and reheat so the layout re-settles with our tuning.
+  useEffect(() => {
+    applyForces(graphRef.current);
+    graphRef.current?.d3ReheatSimulation?.();
+  }, [forceData, applyForces]);
 
   // Lazily fetch cover art. Chrome caches the decoded full-res HTMLImageElement
   // so covers stay sharp when the user zooms in. Safari (desktop + iOS) has a
@@ -330,27 +359,28 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
     return m;
   }, [forceData]);
 
-  // When the focal node is a playlist we also compute a second-hop set: the
-  // OTHER playlists that share any song with the focal playlist. Rendered in
-  // a distinct color so you can see where a playlist's songs also live.
-  const { highlightSet, secondHopPlaylistIds } = useMemo(() => {
-    if (!focalNode) return { highlightSet: null, secondHopPlaylistIds: null };
+  // When the focal node is a playlist we also compute a second-hop map: for
+  // each OTHER playlist, how many songs it shares with the focal playlist.
+  // The map powers both the distinct render color for those nodes and the
+  // "Also in" list in the detail panel.
+  const { highlightSet, secondHopPlaylists } = useMemo(() => {
+    if (!focalNode) return { highlightSet: null, secondHopPlaylists: null };
     const s = new Set<string>([focalNode.id]);
     focalNode.neighbors.forEach((id) => s.add(id));
 
-    let secondHop: Set<string> | null = null;
+    let secondHop: Map<string, number> | null = null;
     if (focalNode.type === "playlist") {
-      secondHop = new Set<string>();
+      secondHop = new Map<string, number>();
       for (const trackId of focalNode.neighbors) {
         const track = nodeById.get(trackId);
         if (!track) continue;
         for (const nb of track.neighbors) {
-          if (nb !== focalNode.id) secondHop.add(nb);
+          if (nb !== focalNode.id) secondHop.set(nb, (secondHop.get(nb) ?? 0) + 1);
         }
       }
       if (secondHop.size === 0) secondHop = null;
     }
-    return { highlightSet: s, secondHopPlaylistIds: secondHop };
+    return { highlightSet: s, secondHopPlaylists: secondHop };
   }, [focalNode, nodeById]);
 
   const nodeCanvasObject = useCallback(
@@ -358,7 +388,7 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       const node = rawNode as ForceNode;
       const isPlaylist = node.type === "playlist";
       const isHighlighted = highlightSet?.has(node.id) ?? false;
-      const isSecondHop = secondHopPlaylistIds?.has(node.id) ?? false;
+      const isSecondHop = secondHopPlaylists?.has(node.id) ?? false;
       const isDimmed = highlightSet !== null && !isHighlighted && !isSecondHop;
       // Track radius scales with degree so heavily-shared songs also read as
       // bigger anchors, not just brighter dots.
@@ -433,7 +463,7 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
     },
     [
       highlightSet,
-      secondHopPlaylistIds,
+      secondHopPlaylists,
       labelColor,
       labelDimColor,
       strokeColor,
@@ -453,16 +483,16 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
       // Second-hop: edge between an immediate-neighbor track and another
       // playlist that shares a song with focal.
       if (
-        secondHopPlaylistIds &&
+        secondHopPlaylists &&
         focalNode &&
-        ((secondHopPlaylistIds.has(s) && focalNode.neighbors.has(t)) ||
-          (secondHopPlaylistIds.has(t) && focalNode.neighbors.has(s)))
+        ((secondHopPlaylists.has(s) && focalNode.neighbors.has(t)) ||
+          (secondHopPlaylists.has(t) && focalNode.neighbors.has(s)))
       ) {
         return "rgba(168,85,247,0.85)";
       }
       return dimmedLinkColor;
     },
-    [highlightSet, secondHopPlaylistIds, focalNode, restingLinkColor, dimmedLinkColor],
+    [highlightSet, secondHopPlaylists, focalNode, restingLinkColor, dimmedLinkColor],
   );
 
   return (
@@ -492,10 +522,10 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
           const t = typeof l.target === "string" ? l.target : l.target.id;
           if (s === focalNode?.id || t === focalNode?.id) return 1.2;
           if (
-            secondHopPlaylistIds &&
+            secondHopPlaylists &&
             focalNode &&
-            ((secondHopPlaylistIds.has(s) && focalNode.neighbors.has(t)) ||
-              (secondHopPlaylistIds.has(t) && focalNode.neighbors.has(s)))
+            ((secondHopPlaylists.has(s) && focalNode.neighbors.has(t)) ||
+              (secondHopPlaylists.has(t) && focalNode.neighbors.has(s)))
           ) {
             return 0.9;
           }
@@ -507,11 +537,21 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
         onZoom={(t: { k: number }) => setZoomedIn((prev) => (prev ? t.k >= 1.2 : t.k >= 1.5))}
         // Wider layout so shared-song clusters have room to separate from the
         // singleton haze. Stronger repulsion + longer link distance turn the
-        // hairball into readable communities.
+        // hairball into readable communities. Higher velocity decay dampens
+        // the initial kinetic burst so the graph doesn't visibly explode
+        // outward before settling. warmupTicks runs the sim off-screen so
+        // the first paint is already close to its resting layout.
+        warmupTicks={120}
         d3AlphaDecay={0.015}
-        d3VelocityDecay={0.35}
+        d3VelocityDecay={0.5}
         cooldownTicks={200}
-        ref={graphRef}
+        // Callback ref: react-force-graph-2d's typing only exposes
+        // MutableRefObject but its underlying forwardRef accepts callback
+        // refs fine at runtime. We need this shape so applyForces() runs
+        // synchronously the moment the sim is created — a useEffect would
+        // fire after the first ticks and the graph would visibly explode
+        // outward with default forces before ours kicked in.
+        ref={handleGraphRef as never}
         backgroundColor="transparent"
       />
       <Legend focused={focused} onClearFocus={() => setFocused(null)} />
@@ -530,13 +570,50 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
           onShowAll={showAllPlaylists}
         />
       </div>
-      {focused ? <GraphNodeDetail node={focused} onClose={() => setFocused(null)} /> : null}
+      {focused ? (
+        <GraphNodeDetail
+          node={focused}
+          secondHopPlaylists={secondHopPlaylists}
+          nodeById={nodeById}
+          onSelectPlaylist={(id) => {
+            const next = nodeById.get(id);
+            if (next) setFocused(next);
+          }}
+          onClose={() => setFocused(null)}
+        />
+      ) : null}
     </div>
   );
 }
 
-function GraphNodeDetail({ node, onClose }: { node: ForceNode; onClose: () => void }) {
+function GraphNodeDetail({
+  node,
+  secondHopPlaylists,
+  nodeById,
+  onSelectPlaylist,
+  onClose,
+}: {
+  node: ForceNode;
+  secondHopPlaylists: Map<string, number> | null;
+  nodeById: Map<string, ForceNode>;
+  onSelectPlaylist: (id: string) => void;
+  onClose: () => void;
+}) {
   const isPlaylist = node.type === "playlist";
+  // Sort other playlists by shared-song count (desc) so the strongest overlaps
+  // surface first. Filter out any ids no longer in the visible node map (a
+  // hidden playlist can't be re-focused anyway).
+  const sharedPlaylists = useMemo(() => {
+    if (!isPlaylist || !secondHopPlaylists) return [] as Array<{ node: ForceNode; count: number }>;
+    const rows: Array<{ node: ForceNode; count: number }> = [];
+    for (const [id, count] of secondHopPlaylists) {
+      const n = nodeById.get(id);
+      if (n && n.type === "playlist") rows.push({ node: n, count });
+    }
+    rows.sort((a, b) => b.count - a.count || a.node.name.localeCompare(b.node.name));
+    return rows;
+  }, [isPlaylist, secondHopPlaylists, nodeById]);
+
   return (
     <div className="border-secondary text-secondary absolute right-3 bottom-3 flex w-72 max-w-[calc(100vw-1.5rem)] flex-col gap-3 rounded-md border bg-white/95 p-3 text-xs backdrop-blur dark:bg-neutral-950/95">
       <button
@@ -588,9 +665,13 @@ function GraphNodeDetail({ node, onClose }: { node: ForceNode; onClose: () => vo
         </div>
       </div>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-tertiary tabular-nums">
-          {node.degree} {node.degree === 1 ? "connection" : "connections"}
-        </span>
+        {isPlaylist ? (
+          <span />
+        ) : (
+          <span className="text-tertiary tabular-nums">
+            {node.degree} {node.degree === 1 ? "connection" : "connections"}
+          </span>
+        )}
         <div className="flex items-center gap-2">
           {node.type === "playlist" ? (
             <Link
@@ -613,6 +694,35 @@ function GraphNodeDetail({ node, onClose }: { node: ForceNode; onClose: () => vo
           ) : null}
         </div>
       </div>
+      {isPlaylist && sharedPlaylists.length > 0 ? (
+        <div className="border-secondary flex flex-col gap-1 border-t pt-2">
+          <div className="text-tertiary text-[10px] tracking-wide uppercase">
+            Connected to {sharedPlaylists.length}{" "}
+            {sharedPlaylists.length === 1 ? "playlist" : "playlists"}
+          </div>
+          <div className="-mx-1 flex max-h-40 flex-col overflow-y-auto">
+            {sharedPlaylists.map(({ node: p, count }) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onSelectPlaylist(p.id)}
+                className="flex items-center gap-2 rounded px-1 py-1 text-left hover:bg-neutral-100 dark:hover:bg-neutral-900"
+              >
+                <span
+                  className="inline-block h-2 w-2 flex-none rounded-full"
+                  style={{ backgroundColor: SECOND_HOP_COLOR }}
+                />
+                <span className="text-primary flex-1 truncate" title={p.name}>
+                  {p.name}
+                </span>
+                <span className="text-tertiary tabular-nums">
+                  {count} {count === 1 ? "song" : "songs"}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -657,7 +767,7 @@ function Legend({
 }) {
   return (
     <div className="border-secondary text-secondary absolute top-3 left-3 flex flex-col gap-1 rounded-md border bg-white/90 px-3 py-2 text-xs backdrop-blur dark:bg-neutral-950/90">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
@@ -667,7 +777,21 @@ function Legend({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-neutral-400" />
-          Song (brighter = shared)
+          Song (brighter = in more playlists)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: HIGHLIGHT_COLOR }}
+          />
+          Focused + its songs
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: SECOND_HOP_COLOR }}
+          />
+          Playlists that share songs
         </span>
       </div>
       {focused ? (

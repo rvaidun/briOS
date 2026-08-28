@@ -353,11 +353,73 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
   // you can hover other nodes to inspect edges without breaking the frame.
   const focalNode = focused ?? hovered;
 
+  // Focus a node AND pan/zoom the camera to it. Used by the top-connected
+  // picker and the "Connected to" list in the detail panel — clicking a name
+  // in a list needs to visibly show the user where the node is, otherwise the
+  // focus state just changes colors somewhere off-screen.
+  const focusAndCenter = useCallback((node: ForceNode) => {
+    setFocused(node);
+    const g = graphRef.current;
+    if (g && typeof node.x === "number" && typeof node.y === "number") {
+      g.centerAt(node.x, node.y, 800);
+      g.zoom(2.5, 800);
+    }
+  }, []);
+
   const nodeById = useMemo(() => {
     const m = new Map<string, ForceNode>();
     for (const n of forceData.nodes) m.set(n.id, n);
     return m;
   }, [forceData]);
+
+  // Top-N most-connected picker feed.
+  //
+  // Playlists: rank by "network density" = (# distinct other playlists it
+  // shares songs with) / (# tracks it holds). A small playlist whose every
+  // song bridges to another playlist ranks above a huge playlist that only
+  // overlaps a handful — surfaces the "bridge" playlists that stitch the
+  // graph together. Tiebreak on absolute second-hop count, then name.
+  //
+  // Tracks: sorted by raw degree (# playlists containing it) — a track is
+  // "connected" iff many playlists share it, and there's no equivalent
+  // size dimension to divide by.
+  const { topPlaylists, topTracks, playlistSecondHopById } = useMemo(() => {
+    const playlists: ForceNode[] = [];
+    const tracks: ForceNode[] = [];
+    for (const n of forceData.nodes) {
+      if (n.type === "playlist") playlists.push(n);
+      else tracks.push(n);
+    }
+    const secondHopById = new Map<string, number>();
+    for (const p of playlists) {
+      const others = new Set<string>();
+      for (const trackId of p.neighbors) {
+        const track = nodeById.get(trackId);
+        if (!track) continue;
+        for (const otherId of track.neighbors) {
+          if (otherId !== p.id) others.add(otherId);
+        }
+      }
+      secondHopById.set(p.id, others.size);
+    }
+    const ratio = (p: ForceNode) => (secondHopById.get(p.id) ?? 0) / Math.max(p.degree, 1);
+    playlists.sort((a, b) => {
+      const r = ratio(b) - ratio(a);
+      if (r !== 0) return r;
+      const s = (secondHopById.get(b.id) ?? 0) - (secondHopById.get(a.id) ?? 0);
+      if (s !== 0) return s;
+      return a.name.localeCompare(b.name);
+    });
+    // Drop playlists that connect to nothing — they'd otherwise crowd the
+    // list with ratio 0 rows.
+    const rankedPlaylists = playlists.filter((p) => (secondHopById.get(p.id) ?? 0) > 0);
+    tracks.sort((a, b) => b.degree - a.degree || a.name.localeCompare(b.name));
+    return {
+      topPlaylists: rankedPlaylists.slice(0, 10),
+      topTracks: tracks.slice(0, 15),
+      playlistSecondHopById: secondHopById,
+    };
+  }, [forceData, nodeById]);
 
   // When the focal node is a playlist we also compute a second-hop map: for
   // each OTHER playlist, how many songs it shares with the focal playlist.
@@ -555,13 +617,19 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
         backgroundColor="transparent"
       />
       <Legend focused={focused} onClearFocus={() => setFocused(null)} />
-      {/* Stack both control panels at top-right so they're visible on mobile
+      {/* Stack control panels at top-right so they're visible on mobile
           without being hidden behind Safari's bottom URL bar. */}
       <div className="absolute top-3 right-3 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
         <LabelPctControl
           value={labelPct}
           onChange={setLabelPct}
           threshold={alwaysLabelTrackDegree}
+        />
+        <TopConnectedControl
+          playlists={topPlaylists}
+          playlistSecondHopById={playlistSecondHopById}
+          tracks={topTracks}
+          onSelect={focusAndCenter}
         />
         <PlaylistToggleControl
           playlists={allPlaylists}
@@ -577,7 +645,7 @@ export function PlaylistForceGraph({ initialData }: { initialData: PlaylistGraph
           nodeById={nodeById}
           onSelectPlaylist={(id) => {
             const next = nodeById.get(id);
-            if (next) setFocused(next);
+            if (next) focusAndCenter(next);
           }}
           onClose={() => setFocused(null)}
         />
@@ -805,6 +873,84 @@ function Legend({
       ) : (
         <span className="text-secondary">Click any node to focus its cluster</span>
       )}
+    </div>
+  );
+}
+
+function TopConnectedControl({
+  playlists,
+  playlistSecondHopById,
+  tracks,
+  onSelect,
+}: {
+  playlists: ForceNode[];
+  playlistSecondHopById: Map<string, number>;
+  tracks: ForceNode[];
+  onSelect: (node: ForceNode) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-secondary text-secondary flex w-64 max-w-full flex-col rounded-md border bg-white/90 text-xs backdrop-blur dark:bg-neutral-950/90">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between gap-3 px-3 py-2"
+      >
+        <span className="text-primary font-medium">Most connected</span>
+        <span className="opacity-60">{open ? "▾" : "▸"}</span>
+      </button>
+      {open ? (
+        <div className="border-secondary flex max-h-72 flex-col overflow-y-auto border-t p-1">
+          <div
+            className="text-tertiary flex items-center justify-between px-2 pt-1 pb-0.5 text-[10px] tracking-wide uppercase"
+            title="Ranked by other-playlists / own-songs ratio — small playlists that touch many others rank first"
+          >
+            <span>Playlists</span>
+            <span className="normal-case opacity-60">links · songs</span>
+          </div>
+          {playlists.map((p) => {
+            const links = playlistSecondHopById.get(p.id) ?? 0;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onSelect(p)}
+                className="flex items-center gap-2 rounded px-2 py-1 text-left hover:bg-neutral-100 dark:hover:bg-neutral-900"
+              >
+                <span
+                  className="inline-block h-2 w-2 flex-none rounded-full"
+                  style={{ backgroundColor: PLAYLIST_COLOR }}
+                />
+                <span className="text-primary flex-1 truncate" title={p.name}>
+                  {p.name}
+                </span>
+                <span className="tabular-nums opacity-60">
+                  {links} · {p.degree}
+                </span>
+              </button>
+            );
+          })}
+          <div className="text-tertiary flex items-center justify-between px-2 pt-2 pb-0.5 text-[10px] tracking-wide uppercase">
+            <span>Songs</span>
+            <span className="normal-case opacity-60">in # playlists</span>
+          </div>
+          {tracks.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onSelect(t)}
+              className="flex items-center gap-2 rounded px-2 py-1 text-left hover:bg-neutral-100 dark:hover:bg-neutral-900"
+            >
+              <span className="inline-block h-2 w-2 flex-none rounded-full bg-neutral-400" />
+              <span className="text-primary flex-1 truncate" title={t.name}>
+                {t.name}
+                {t.type === "track" && t.artist ? ` — ${t.artist}` : ""}
+              </span>
+              <span className="tabular-nums opacity-60">{t.degree}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

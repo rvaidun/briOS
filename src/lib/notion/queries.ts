@@ -1,5 +1,6 @@
 import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
+import { isMirrorError } from "../r2/mirror";
 import { getAllBlocks } from "./blocks";
 import { notion } from "./client";
 import {
@@ -145,6 +146,7 @@ export async function getWritingPostContent(
     const blocks = await getAllBlocks(pageId);
     return { blocks, metadata };
   } catch (error) {
+    if (isMirrorError(error)) throw error;
     console.error(`Error fetching writing post content for page ${pageId}:`, error);
     return null;
   }
@@ -174,6 +176,7 @@ export async function getWritingPostContentBySlug(
 
     return getWritingPostContent(page.id);
   } catch (error) {
+    if (isMirrorError(error)) throw error;
     console.error(`Error fetching writing post content for slug ${slug}:`, error);
     return null;
   }

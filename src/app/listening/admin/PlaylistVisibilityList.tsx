@@ -57,6 +57,7 @@ export function PlaylistVisibilityList({ playlists }: { playlists: PlaylistListI
                 width={40}
                 height={40}
                 alt=""
+                unoptimized
                 className="size-10 flex-none rounded object-cover ring-[0.5px] ring-black/10 dark:ring-white/10"
               />
             ) : (

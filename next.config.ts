@@ -36,6 +36,10 @@ const nextConfig: NextConfig = {
     // Allow lower-quality variants for gallery thumbnails. Default is [75];
     // 55 is used by BlogImage when rendered as a masonry tile.
     qualities: [55, 75],
+    // 31 days. Sources are content-addressed (R2 photo/blog keys, Spotify/
+    // Apple album art) so the underlying bytes at a given URL don't change —
+    // long cache = fewer optimizer transforms against the Vercel quota.
+    minimumCacheTTL: 2678400,
     remotePatterns: [
       {
         protocol: "https",

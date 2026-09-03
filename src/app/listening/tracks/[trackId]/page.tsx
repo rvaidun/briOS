@@ -134,6 +134,7 @@ function MoreByArtist({
                   width={24}
                   height={24}
                   alt=""
+                  unoptimized
                   className="size-6 flex-none rounded object-cover ring-[0.5px] ring-black/10 dark:ring-white/10"
                 />
               ) : (

@@ -61,6 +61,7 @@ export function TopList({
                         width={28}
                         height={28}
                         alt=""
+                        unoptimized
                         className="size-7 flex-none rounded object-cover ring-[0.5px] ring-black/10 dark:ring-white/10"
                       />
                     ) : (

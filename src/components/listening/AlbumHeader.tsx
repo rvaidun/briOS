@@ -53,6 +53,7 @@ export function AlbumHeader({ name, imageUrl, spotifyUrl, releaseDate, artists }
             width={96}
             height={96}
             alt=""
+            unoptimized
             className="size-20 flex-none rounded-md object-cover ring-[0.5px] ring-black/10 md:size-24 dark:ring-white/10"
           />
         ) : (

@@ -63,6 +63,7 @@ export default async function PlaylistDetailPage({ params }: { params: Promise<{
                 width={128}
                 height={128}
                 alt=""
+                unoptimized
                 className="size-24 flex-none rounded-md object-cover ring-[0.5px] ring-black/10 md:size-32 dark:ring-white/10"
               />
             ) : (

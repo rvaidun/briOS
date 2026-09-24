@@ -12,10 +12,6 @@ import { createArticleJsonLd, createMetadata, truncateDescription } from "@/lib/
 import { getWritingPostContentBySlug, getWritingPostMetadataBySlug } from "@/lib/notion";
 import { getAllWritingPosts } from "@/lib/writing";
 
-// Media is mirrored to R2 with stable URLs, so we no longer need a short
-// revalidate window to combat Notion S3 URL expiry. 24h matches /api/blog.
-export const revalidate = 86400;
-
 // Generate static params for all writing posts at build time
 export async function generateStaticParams() {
   const posts = await getAllWritingPosts();

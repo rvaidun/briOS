@@ -1,0 +1,219 @@
+name: build-and-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-brios
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  # Compute which images need rebuilding based on which paths changed since
+  # the last push. Each service filter includes the shared libs it imports at
+  # runtime so a change to e.g. src/lib/db invalidates brios + cron-listening
+  # simultaneously.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      brios: ${{ steps.filter.outputs.brios }}
+      cron-listening: ${{ steps.filter.outputs.cron-listening }}
+      cron-photos: ${{ steps.filter.outputs.cron-photos }}
+      cron-maps: ${{ steps.filter.outputs.cron-maps }}
+      any: ${{ steps.filter.outputs.brios == 'true' || steps.filter.outputs.cron-listening == 'true' || steps.filter.outputs.cron-photos == 'true' || steps.filter.outputs.cron-maps == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            brios:
+              - 'Dockerfile'
+              - '.dockerignore'
+              - 'next.config.ts'
+              - 'package.json'
+              - 'bun.lockb'
+              - 'bun.lock'
+              - 'src/**'
+              - 'public/**'
+              - 'drizzle/**'
+              - 'components.json'
+              - 'postcss.config.mjs'
+              - 'tsconfig.json'
+              - '.github/workflows/deploy.yml'
+            cron-listening:
+              - 'docker/cron/listening/**'
+              - 'scripts/syncListening.ts'
+              - 'src/lib/db/**'
+              - 'src/lib/spotify.ts'
+              - '.github/workflows/deploy.yml'
+            cron-photos:
+              - 'docker/cron/photos/**'
+              - 'scripts/mirrorPhotos.ts'
+              - 'src/lib/google-photos/**'
+              - 'src/lib/r2/**'
+              - '.github/workflows/deploy.yml'
+            cron-maps:
+              - 'docker/cron/maps/**'
+              - '.github/workflows/deploy.yml'
+
+  build-brios:
+    needs: changes
+    if: needs.changes.outputs.brios == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/brios:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/brios:${{ github.sha }}
+          cache-from: type=gha,scope=brios
+          cache-to: type=gha,mode=max,scope=brios
+
+  build-cron-listening:
+    needs: changes
+    if: needs.changes.outputs.cron-listening == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/cron/listening/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/cron-listening:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/cron-listening:${{ github.sha }}
+          cache-from: type=gha,scope=cron-listening
+          cache-to: type=gha,mode=max,scope=cron-listening
+
+  build-cron-photos:
+    needs: changes
+    if: needs.changes.outputs.cron-photos == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/cron/photos/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/cron-photos:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/cron-photos:${{ github.sha }}
+          cache-from: type=gha,scope=cron-photos
+          cache-to: type=gha,mode=max,scope=cron-photos
+
+  build-cron-maps:
+    needs: changes
+    if: needs.changes.outputs.cron-maps == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/cron/maps/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/cron-maps:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/cron-maps:${{ github.sha }}
+          cache-from: type=gha,scope=cron-maps
+          cache-to: type=gha,mode=max,scope=cron-maps
+
+  # Pull whatever changed on the mini PC and restart the long-running services.
+  # Cron images are profile-gated and run on-demand via wrapper.sh; we only
+  # `pull` them so the next scheduled tick picks up the new image.
+  deploy:
+    needs: [changes, build-brios, build-cron-listening, build-cron-photos, build-cron-maps]
+    if: |
+      !failure() && !cancelled() && needs.changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Deploy changed services to mini PC
+        env:
+          BRIOS_CHANGED: ${{ needs.changes.outputs.brios }}
+          CRON_LISTENING_CHANGED: ${{ needs.changes.outputs.cron-listening }}
+          CRON_PHOTOS_CHANGED: ${{ needs.changes.outputs.cron-photos }}
+          CRON_MAPS_CHANGED: ${{ needs.changes.outputs.cron-maps }}
+        run: |
+          set -euo pipefail
+
+          PULL=""
+          UP=""
+          [ "$BRIOS_CHANGED" = "true" ] && { PULL="$PULL brios"; UP="$UP brios"; }
+          [ "$CRON_LISTENING_CHANGED" = "true" ] && PULL="$PULL cron-listening"
+          [ "$CRON_PHOTOS_CHANGED" = "true" ] && PULL="$PULL cron-photos"
+          [ "$CRON_MAPS_CHANGED" = "true" ] && PULL="$PULL cron-maps"
+
+          echo "pull:$PULL"
+          echo "up  :$UP"
+
+          # Build the remote command; base64-encode to sidestep double-nested
+          # SSH quoting.
+          REMOTE="cd /srv/stack && docker compose pull$PULL"
+          [ -n "$UP" ] && REMOTE="$REMOTE && docker compose up -d$UP"
+          REMOTE="$REMOTE && docker image prune -f"
+          REMOTE_B64=$(printf '%s' "$REMOTE" | base64 -w0)
+
+          # Jump: GHA → droplet (public IP) → mini PC (via Tailscale). Agent
+          # forwarding carries the deploy key to both hops.
+          ssh -A -o StrictHostKeyChecking=accept-new \
+              rahul@159.223.148.61 \
+              "ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes rahul@100.94.8.55 \
+                  \"echo $REMOTE_B64 | base64 -d | bash\""

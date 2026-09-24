@@ -1,31 +1,26 @@
-// Registry of every cron job that runs on the DO droplet and reports back to
+// Registry of every cron job that runs on the mini PC and reports back to
 // briOS. Both the UI (for "next scheduled" and display names) and the trigger
 // route (to validate the `jobName` input) read from here. To add a job:
 // 1. Add an entry here.
 // 2. Add a corresponding `cron-<name>` service to the server-config compose.
 // 3. Add a crontab line invoking `wrapper.sh <name>`.
 
-export type JobName = "spotify" | "maps" | "photos" | "listening";
+export type JobName = "maps" | "photos" | "listening";
 
 export type CronJob = {
   jobName: JobName;
   displayName: string;
   description: string;
-  // Standard 5-field cron expression matching the crontab on the droplet.
+  // Standard 5-field cron expression matching the crontab on the mini PC.
   schedule: string;
 };
 
 export const CRON_JOBS: readonly CronJob[] = [
   {
-    jobName: "spotify",
-    displayName: "Spotify → Notion",
-    description: "Syncs recently-played tracks from Spotify into the Notion listening database.",
-    schedule: "0 * * * *",
-  },
-  {
     jobName: "listening",
-    displayName: "Spotify → Neon",
-    description: "Syncs recently-played tracks from Spotify into the Neon listens table.",
+    displayName: "Spotify → Postgres",
+    description:
+      "Syncs recently-played tracks from Spotify into the self-hosted Postgres listens table.",
     schedule: "0 * * * *",
   },
   {

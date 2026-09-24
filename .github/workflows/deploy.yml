@@ -57,6 +57,7 @@ jobs:
             cron-photos:
               - 'docker/cron/photos/**'
               - 'scripts/mirrorPhotos.ts'
+              - 'scripts/warmPhotoCache.ts'
               - 'src/lib/google-photos/**'
               - 'src/lib/r2/**'
               - '.github/workflows/deploy.yml'

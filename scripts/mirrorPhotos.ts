@@ -17,6 +17,7 @@ import { scrapeAlbumFromGoogle } from "../src/lib/google-photos";
 import type { Photo } from "../src/lib/google-photos/types";
 import { getR2Client, isR2Configured, R2_BUCKET } from "../src/lib/r2/client";
 import { mirrorUrlToR2, putJsonToR2 } from "../src/lib/r2/mirror";
+import { warmPhotos } from "./warmPhotoCache";
 
 const PHOTO_KEY_RE = /^photos\/(AF1Qip[A-Za-z0-9_-]+)\.jpg$/;
 
@@ -33,11 +34,15 @@ async function main() {
     process.exit(1);
   }
 
+  const noWarm = process.argv.includes("--no-warm");
+  const warmAll = process.argv.includes("--warm-all");
+
   console.log("🚀 Scraping Google Photos album...");
   const photos = await scrapeAlbumFromGoogle();
   console.log(`   Found ${photos.length} unique photos\n`);
 
   const mirrored: Photo[] = [];
+  const newlyUploaded: Photo[] = [];
   let uploaded = 0;
   let skipped = 0;
   let errors = 0;
@@ -59,12 +64,17 @@ async function main() {
         continue;
       }
 
-      // Heuristic: a sub-100ms round-trip means we hit the HEAD short-circuit.
-      if (took < 150) skipped++;
-      else uploaded++;
+      // Heuristic: a sub-150ms round-trip means we hit the HEAD short-circuit.
+      // The warmer only needs to see photos that were actually just uploaded
+      // (or every photo when --warm-all is passed for a full re-warm).
+      const isNew = took >= 150;
+      if (isNew) uploaded++;
+      else skipped++;
 
-      mirrored.push({ ...photo, baseUrl: r2Url });
-      console.log(`✓ ${took < 150 ? "skip" : "upload"} (${took}ms)`);
+      const mirroredPhoto = { ...photo, baseUrl: r2Url };
+      mirrored.push(mirroredPhoto);
+      if (isNew) newlyUploaded.push(mirroredPhoto);
+      console.log(`✓ ${isNew ? "upload" : "skip"} (${took}ms)`);
     } catch (error) {
       errors++;
       console.log(`✗ ${error instanceof Error ? error.message : "error"}`);
@@ -80,12 +90,32 @@ async function main() {
   const indexUrl = await putJsonToR2("photos/index.json", mirrored);
   console.log(`   ${indexUrl}`);
 
+  // Pre-warm the Next.js image optimizer for anything newly uploaded so the
+  // first user visit doesn't pay the DNS → droplet → tailnet → mini-PC hop.
+  // `--warm-all` warms every photo (useful after a deploy that invalidated
+  // the optimizer cache); default only warms new uploads.
+  const toWarm = warmAll ? mirrored : newlyUploaded;
+  let warmSummary: { variants: number; errors: number; elapsedMs: number } | null = null;
+  if (!noWarm && toWarm.length > 0) {
+    console.log(
+      `\n🔥 Warming image optimizer for ${toWarm.length} ${warmAll ? "" : "new "}photo(s)...`,
+    );
+    warmSummary = await warmPhotos(toWarm, { verbose: false });
+    console.log(
+      `   ${warmSummary.variants} variant(s) in ${(warmSummary.elapsedMs / 1000).toFixed(1)}s` +
+        (warmSummary.errors > 0 ? ` (${warmSummary.errors} errors)` : ""),
+    );
+  } else if (!noWarm) {
+    console.log("\n🔥 Nothing new to warm.");
+  }
+
   console.log("\n" + "=".repeat(50));
   console.log("✅ Done");
   console.log(`   Photos in index: ${mirrored.length}`);
   console.log(`   Uploaded:        ${uploaded}`);
   console.log(`   Already in R2:   ${skipped}`);
   console.log(`   Deleted:         ${deleted}`);
+  if (warmSummary) console.log(`   Warmed variants: ${warmSummary.variants}`);
   console.log(`   Errors:          ${errors + deleteFailed}`);
   console.log("=".repeat(50));
 }

@@ -12,17 +12,6 @@ import { createArticleJsonLd, createMetadata, truncateDescription } from "@/lib/
 import { getWritingPostContentBySlug, getWritingPostMetadataBySlug } from "@/lib/notion";
 import { getAllWritingPosts } from "@/lib/writing";
 
-// Generate static params for all writing posts at build time
-export async function generateStaticParams() {
-  const posts = await getAllWritingPosts();
-
-  return posts
-    .filter((post) => post.slug) // Only include posts with slugs
-    .map((post) => ({
-      slug: post.slug,
-    }));
-}
-
 // Generate metadata for each writing post
 export async function generateMetadata(props: {
   params: Promise<{ slug: string }>;

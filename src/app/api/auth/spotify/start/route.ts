@@ -18,16 +18,22 @@ export async function GET(request: NextRequest) {
   // Spotify's redirect URI policy (2026) rejects `localhost` — only the
   // explicit loopback address is allowed for HTTP. If the user visits with
   // localhost, bounce them to 127.0.0.1 so the state cookie and Google
-  // session get set on the same origin Spotify will redirect back to.
-  if (request.nextUrl.hostname === "localhost") {
+  // session get set on the same origin Spotify will redirect back to. Read
+  // the real Host header rather than `nextUrl.hostname`, which Next dev
+  // normalizes to the server's bind address and would cause a self-redirect
+  // loop when the client is already on 127.0.0.1.
+  const hostHeader = request.headers.get("host") ?? "";
+  const hostname = hostHeader.split(":")[0];
+  if (hostname === "localhost") {
     const rewritten = new URL(request.nextUrl);
     rewritten.hostname = "127.0.0.1";
+    rewritten.host = `127.0.0.1${rewritten.port ? `:${rewritten.port}` : ""}`;
     return NextResponse.redirect(rewritten);
   }
 
   const session = await getSession();
   if (!session || !isOwnerRole(session.user.role)) {
-    const loginUrl = new URL("/login", request.nextUrl.origin);
+    const loginUrl = new URL("/login", clientOrigin(request));
     loginUrl.searchParams.set("from", "/api/auth/spotify/start");
     return NextResponse.redirect(loginUrl);
   }
@@ -52,5 +58,16 @@ export async function GET(request: NextRequest) {
 function resolveRedirectUri(request: NextRequest): string {
   const override = process.env.SPOTIFY_REDIRECT_URI;
   if (override) return override;
-  return `${request.nextUrl.origin}/api/auth/spotify/callback`;
+  return `${clientOrigin(request)}/api/auth/spotify/callback`;
+}
+
+// Derive the origin the client actually used. `request.nextUrl.origin` is
+// normalized by Next dev to the server's bind address, which mismatches when
+// the browser hit 127.0.0.1 but Next thinks it's localhost — Spotify would
+// then reject with redirect_uri_mismatch.
+function clientOrigin(request: NextRequest): string {
+  const host = request.headers.get("host");
+  if (!host) return request.nextUrl.origin;
+  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  return `${proto}://${host}`;
 }

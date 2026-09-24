@@ -46,6 +46,12 @@ export async function GET(request: NextRequest) {
 function resolveRedirectUri(request: NextRequest): string {
   const override = process.env.GOOGLE_LOGIN_REDIRECT_URI;
   if (override) return override;
-  const origin = request.nextUrl.origin;
-  return `${origin}/api/auth/google/callback`;
+  // Derive from the real Host header so we stay on whichever hostname the
+  // browser used (127.0.0.1 vs localhost). `nextUrl.origin` is normalized
+  // by Next dev to the server's bind address, which drops us onto the
+  // wrong origin post-callback and orphans the session cookie.
+  const host = request.headers.get("host");
+  if (!host) return `${request.nextUrl.origin}/api/auth/google/callback`;
+  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  return `${proto}://${host}/api/auth/google/callback`;
 }

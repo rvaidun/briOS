@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     await setSessionCookie(user.id);
 
     const destination = destinationForRole(user.role, fromCookie);
-    return NextResponse.redirect(new URL(destination, request.nextUrl.origin));
+    return NextResponse.redirect(new URL(destination, clientOrigin(request)));
   } catch (err) {
     console.error("[auth] google callback failed", err);
     const reason = err instanceof Error ? err.message : "callback_failed";
@@ -76,7 +76,7 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 function errorRedirect(request: NextRequest, reason: string): NextResponse {
-  const url = new URL("/login", request.nextUrl.origin);
+  const url = new URL("/login", clientOrigin(request));
   url.searchParams.set("error", reason);
   return NextResponse.redirect(url);
 }
@@ -84,5 +84,14 @@ function errorRedirect(request: NextRequest, reason: string): NextResponse {
 function resolveRedirectUri(request: NextRequest): string {
   const override = process.env.GOOGLE_LOGIN_REDIRECT_URI;
   if (override) return override;
-  return `${request.nextUrl.origin}/api/auth/google/callback`;
+  return `${clientOrigin(request)}/api/auth/google/callback`;
+}
+
+// Same rationale as /api/auth/google/start: use the real Host header so
+// dev requests coming in via 127.0.0.1 don't get normalized to localhost.
+function clientOrigin(request: NextRequest): string {
+  const host = request.headers.get("host");
+  if (!host) return request.nextUrl.origin;
+  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  return `${proto}://${host}`;
 }

@@ -64,7 +64,12 @@ function safeEqual(a: string, b: string): boolean {
 function resolveRedirectUri(request: NextRequest): string {
   const override = process.env.SPOTIFY_REDIRECT_URI;
   if (override) return override;
-  return `${request.nextUrl.origin}/api/auth/spotify/callback`;
+  // Must match the redirect_uri sent by /start, which is derived from the
+  // client's Host header (not nextUrl.origin — Next dev normalizes it).
+  const host = request.headers.get("host");
+  if (!host) return `${request.nextUrl.origin}/api/auth/spotify/callback`;
+  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  return `${proto}://${host}/api/auth/spotify/callback`;
 }
 
 function successResponse(userId: string, expiresAt: Date): NextResponse {

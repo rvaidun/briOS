@@ -205,8 +205,10 @@ jobs:
           echo "up  :$UP"
 
           # Build the remote command; base64-encode to sidestep double-nested
-          # SSH quoting.
-          REMOTE="cd /srv/stack && docker compose pull$PULL"
+          # SSH quoting. Always sync server-config first so compose.yml reflects
+          # any recent image/service changes.
+          REMOTE="cd /srv/stack-repo && git pull --ff-only"
+          REMOTE="$REMOTE && cd /srv/stack && docker compose pull$PULL"
           [ -n "$UP" ] && REMOTE="$REMOTE && docker compose up -d$UP"
           REMOTE="$REMOTE && docker image prune -f"
           REMOTE_B64=$(printf '%s' "$REMOTE" | base64 -w0)

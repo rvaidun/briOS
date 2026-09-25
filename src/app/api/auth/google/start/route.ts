@@ -52,6 +52,7 @@ function resolveRedirectUri(request: NextRequest): string {
   // wrong origin post-callback and orphans the session cookie.
   const host = request.headers.get("host");
   if (!host) return `${request.nextUrl.origin}/api/auth/google/callback`;
-  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  const proto =
+    request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
   return `${proto}://${host}/api/auth/google/callback`;
 }

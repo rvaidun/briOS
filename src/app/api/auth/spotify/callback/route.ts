@@ -68,7 +68,8 @@ function resolveRedirectUri(request: NextRequest): string {
   // client's Host header (not nextUrl.origin — Next dev normalizes it).
   const host = request.headers.get("host");
   if (!host) return `${request.nextUrl.origin}/api/auth/spotify/callback`;
-  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  const proto =
+    request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
   return `${proto}://${host}/api/auth/spotify/callback`;
 }
 

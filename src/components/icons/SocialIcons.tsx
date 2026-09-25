@@ -139,8 +139,9 @@ export function DoorDashIcon({ size = 20, ...rest }: IconProps) {
       version="1.2"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 1525 855"
-      width="20"
-      height="20"
+      width={size}
+      height={size}
+      {...rest}
     >
       <style>{`.s0 { fill: #ff3000; }`}</style>
       <title>DoorDash_Logo-svg</title>

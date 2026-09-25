@@ -68,6 +68,7 @@ function resolveRedirectUri(request: NextRequest): string {
 function clientOrigin(request: NextRequest): string {
   const host = request.headers.get("host");
   if (!host) return request.nextUrl.origin;
-  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  const proto =
+    request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
   return `${proto}://${host}`;
 }

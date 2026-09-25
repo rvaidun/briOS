@@ -7,11 +7,6 @@ import { notion } from "../src/lib/notion/client";
 // Type for database property configurations
 type DatabaseProperty = DatabaseObjectResponse["properties"][string];
 
-/** Properly escape string for use in generated TypeScript code */
-function escapeForTypeScript(str: string): string {
-  return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-}
-
 /** Map Notion property types to Zod type strings. Extend as needed. */
 function notionPropToZod(prop: DatabaseProperty): string {
   switch (prop.type) {

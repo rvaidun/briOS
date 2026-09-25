@@ -89,6 +89,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/brios:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/brios:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_UMAMI_WEBSITE_ID=${{ vars.UMAMI_WEBSITE_ID }}
           cache-from: type=gha,scope=brios
           cache-to: type=gha,mode=max,scope=brios
 

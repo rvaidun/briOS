@@ -23,6 +23,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL="postgres://user:pass@localhost:5432/db"
 ENV SESSION_SECRET="build-time-placeholder-not-used-at-runtime"
 
+# NEXT_PUBLIC_* is inlined by Next at build time, so runtime env_file is a
+# no-op for these. GHA passes the current umami website id via --build-arg;
+# unset ⇒ layout.tsx skips mounting the tracker (correct default for local
+# `docker build` and initial CI runs before the repo var is populated).
+ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID=""
+ENV NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 

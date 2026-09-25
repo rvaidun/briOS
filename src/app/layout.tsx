@@ -1,8 +1,8 @@
 import "./globals.css";
 
-import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
+import Script from "next/script";
 import { PropsWithChildren } from "react";
 
 import { ClientShell } from "@/components/ClientShell";
@@ -59,7 +59,13 @@ export default async function RootLayout({ children }: PropsWithChildren) {
         <Providers session={clientSession}>
           <ClientShell>{children}</ClientShell>
         </Providers>
-        <Analytics />
+        {process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
+          <Script
+            src="/_/i.js"
+            data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+            strategy="afterInteractive"
+          />
+        )}
       </body>
     </html>
   );

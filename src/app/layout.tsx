@@ -63,6 +63,7 @@ export default async function RootLayout({ children }: PropsWithChildren) {
           <Script
             src="/_/i.js"
             data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+            data-host-url="https://www.rahul.ws"
             strategy="afterInteractive"
           />
         )}

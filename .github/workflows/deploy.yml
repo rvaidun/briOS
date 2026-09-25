@@ -44,6 +44,7 @@ jobs:
               - 'src/**'
               - 'public/**'
               - 'drizzle/**'
+              - 'types/**'
               - 'components.json'
               - 'postcss.config.mjs'
               - 'tsconfig.json'
